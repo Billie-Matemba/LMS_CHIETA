@@ -32,6 +32,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from rest_framework.decorators import api_view, parser_classes
 from rest_framework.parsers import JSONParser, MultiPartParser
 from io import BytesIO
+from core.email import send_account_creation_email
 
 from django.template.loader import render_to_string
 from django.utils import timezone
@@ -343,7 +344,11 @@ def handle_user_creation(request):
             )
 
         return redirect("user_management")
-
+    
+    except Exception as e:
+        # Handle any unexpected errors
+        messages.error(request, f"An error occurred while creating the user: {str(e)}")
+        return redirect("user_management")
         #user.save()
 
         # Send email
