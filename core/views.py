@@ -363,8 +363,8 @@ def handle_user_creation(request):
                # flush=True,
           #  )
           #  messages.success(
-                request, f"User {email} created successfully. Password emailed."
-            )
+           #     request, f"User {email} created successfully. Password emailed."
+            #)
       #  except Exception as e:
          #   messages.warning(
               #  request, f"User created but email failed to send: {str(e)}"
