@@ -3,7 +3,7 @@ import random
 from pathlib import Path
 from django.utils.timezone import now
 from core.models import Paper
-from utils import populate_examnodes_from_structure_json
+from utils_pro import populate_examnodes_from_structure_json
 
 
 def randomize_paper_via_structure_json_debug(paper_id):
