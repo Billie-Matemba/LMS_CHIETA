@@ -403,10 +403,10 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'demochietahandover',
-        'USER': 'demochietahandover_user',
-        'PASSWORD': 'dznDpVNLOehMveDOMUBTgIzPNSpEfot8',
-        'HOST': 'dpg-d4i2rcshg0os738o7s80-a.oregon-postgres.render.com',
+        'NAME': 'chietalms_db',
+        'USER': 'chietalms_db_user',
+        'PASSWORD': 'STJoCuJLFlsxBIYFbYXF1WbUUfytDLSK',
+        'HOST': 'dpg-d4i6bb3uibrs73e0p4n0-a.oregon-postgres.render.com',
         'PORT': '5432',
     }
 }
