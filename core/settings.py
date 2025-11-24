@@ -412,7 +412,7 @@ DATABASES = {
 }
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = '/opt/render/project/src/media'
+MEDIA_ROOT = '/var/data/media'
 
 # 🚨 TEMPORARY DEMO CHANGE - Create media folder on startup
 os.makedirs(MEDIA_ROOT, exist_ok=True)
