@@ -139,6 +139,11 @@ All models live in `core/models.py` unless noted.
 - Snapshot actions: delete or convert any block directly from the review page (`core/views.py:1328-1436`, `_snapshot_node.html`).
 - Success banner & dropdown sort ensure new snapshots appear immediately (`core/views.py:1532-1599`, `core/templates/core/assessor-developer/randomized_snapshot.html`).
 - Randomization metadata fallbacks prevent crashes when originals lack module fields (`core/views.py:2431-2491`).
+- **Memo-first editing** (Dec 2025): the snapshot view now has a Paper/Memo toggle. Keep it in **Memo** mode when uploading an answer key:
+  1. Review the captured block (tables/images stay intact).
+  2. Click **Add Corresponding Question Block**. The block’s current text becomes the stored `QuestionMemo`; the block itself stays editable so you can blank out learner text manually.
+  3. Switch to **Paper** mode only when you need to hand-type memo text via the textarea.
+  Download the learner paper via the standard buttons or append `?variant=memo` to get the memo pack generated from those saved `QuestionMemo` entries.
 
 Keep this README close when onboarding new teammatesthe files referenced above are the main surfaces youll touch when adjusting the randomization pipeline or the advanced extraction tooling.
 

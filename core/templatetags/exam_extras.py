@@ -6,6 +6,21 @@ from django.conf import settings
 
 register = template.Library()
 
+@register.filter
+def dict_get(value, key):
+    """Safely fetch key from dict-like structures in templates."""
+    if isinstance(value, dict):
+        return value.get(str(key)) or value.get(key)
+    return None
+
+@register.filter
+def is_text_block(item):
+    """Return True when a content item is text-editable."""
+    if not isinstance(item, dict):
+        return False
+    itype = (item.get("type") or "").lower()
+    return itype in {"text", "question_text", "instruction", "paragraph", "heading", "case_study"}
+
 def _normalize_rows(rows):
     """
     Return rows as a list[list[str]] no matter the input shape.

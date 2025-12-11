@@ -1,0 +1,688 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Memo — {{ paper.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .memo-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 0.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .question-memo-card {
+        border-left: 4px solid #667eea;
+        transition: all 0.2s;
+        margin-bottom: 1rem;
+    }
+
+    .question-memo-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+
+    .question-memo-card.has-memo {
+        border-left-color: #28a745;
+        background: #f0f8f5;
+    }
+
+    .question-number {
+        display: inline-block;
+        background: #667eea;
+        color: white;
+        width: 40px;
+        height: 40px;
+        line-height: 40px;
+        text-align: center;
+        border-radius: 50%;
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+
+    .question-memo-card.has-memo .question-number {
+        background: #28a745;
+    }
+
+    .memo-form {
+        display: none;
+    }
+
+    .memo-form.show {
+        display: block;
+        animation: slideDown 0.3s ease-in;
+    }
+
+    @keyframes slideDown {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .memo-preview {
+        background: #f8f9fa;
+        padding: 1rem;
+        border-radius: 0.25rem;
+        max-height: 150px;
+        overflow-y: auto;
+        font-size: 0.9rem;
+        line-height: 1.5;
+    }
+
+    .action-buttons {
+        gap: 0.5rem;
+    }
+
+    .tabs-navigation {
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 10;
+        padding: 1rem 0;
+        border-bottom: 1px solid #dee2e6;
+        margin-bottom: 2rem;
+    }
+
+    .paper-block-editor textarea {
+        font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        min-height: 160px;
+    }
+
+    .paper-block-editor .btn {
+        min-width: 140px;
+    }
+
+    .memo-status-pill {
+        font-size: 0.75rem;
+        letter-spacing: 0.04em;
+    }
+
+    .finalize-btn[disabled] {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+    <div class="memo-header">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1><i class="fas fa-pen-fancy"></i> Edit Paper Memo</h1>
+                <p class="text-white-50 mb-0">{{ paper.name }}</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button id="finalizeMemoBtn" class="btn btn-success btn-sm finalize-btn" disabled>
+                    <i class="fas fa-save"></i> Save Memo Package
+                </button>
+                <a href="{% url 'randomised_papers_list' %}" class="btn btn-outline-light btn-sm">
+                    <i class="fas fa-arrow-left"></i> Back to List
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'assessor_developer' %}">Developer</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'randomised_papers_list' %}">Randomised Papers</a></li>
+            <li class="breadcrumb-item active">Edit Memo</li>
+        </ol>
+    </nav>
+
+    <!-- Info Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h3 class="text-info">{{ nodes.count }}</h3>
+                    <p class="text-muted small mb-0">Questions</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h3 class="text-success">{{ paper.total_marks }}</h3>
+                    <p class="text-muted small mb-0">Total Marks</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <h3 class="text-primary" id="memoCount">0</h3>
+                    <p class="text-muted small mb-0">Memos Added</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    {% if paper.memo %}
+                    <a href="{% url 'download_randomised_paper_memo_pdf' paper.id %}"
+                        class="btn btn-sm btn-warning w-100">
+                        <i class="fas fa-download"></i> Download PDF
+                    </a>
+                    {% else %}
+                    <p class="text-muted small mb-0">No memo PDF yet</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs-navigation">
+        <ul class="nav nav-tabs" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#questionsTab">
+                    <i class="fas fa-list"></i> All Questions
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#previewTab">
+                    <i class="fas fa-eye"></i> Preview
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+
+        <!-- Questions Tab -->
+        <div id="questionsTab" class="tab-pane fade show active">
+
+            {% if nodes %}
+            <div id="questionsContainer">
+                {% for node in nodes %}
+                {% with memo=memos|get_item:node.id %}
+                <div class="card question-memo-card {% if memo %}has-memo{% endif %}" data-node-id="{{ node.id }}">
+                    <div class="card-header bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="question-number">{{ node.number|default:"?" }}</span>
+                                <div>
+                                    <h5 class="mb-1">{{ node.text|truncatewords:10 }}</h5>
+                                    <small class="text-muted">
+                                        Marks: <strong>{{ node.marks|default:"-" }}</strong>
+                                    </small>
+                                </div>
+                            </div>
+                            <div class="text-end">
+                                {% if memo %}
+                                <span class="badge bg-success memo-status-pill">
+                                    <i class="fas fa-check-circle"></i> Memo Linked
+                                </span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark memo-status-pill">
+                                    <i class="fas fa-exclamation-circle"></i> Memo Pending
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card-body">
+                        <div class="row g-4">
+                            <div class="col-lg-6">
+                                <div class="paper-block-editor">
+                                    <label class="form-label mb-1">
+                                        <strong>Paper Block Content</strong>
+                                    </label>
+                                    <textarea id="paperContent-{{ node.id }}" class="form-control paper-content"
+                                        data-node-id="{{ node.id }}" rows="8"
+                                        placeholder="Blank out the answers to create the learner-facing paper...">{{ node.text|default_if_none:"" }}</textarea>
+                                    <small class="text-muted d-block mt-2">
+                                        Tip: click <em>Convert to Memo</em> first to capture the answer key, then edit the
+                                        text above to remove solutions.
+                                    </small>
+                                    <div class="d-flex flex-wrap gap-2 mt-3">
+                                        <button type="button" class="btn btn-outline-primary btn-sm convert-to-memo-btn"
+                                            data-node-id="{{ node.id }}" data-question-number="{{ node.number }}">
+                                            <i class="fas fa-clone"></i> Convert to Memo
+                                        </button>
+                                        <button type="button" class="btn btn-success btn-sm save-paper-btn"
+                                            data-node-id="{{ node.id }}">
+                                            <i class="fas fa-save"></i> Save Paper Block
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-6 memo-column" data-memo-column="{{ node.id }}">
+                                {% if memo %}
+                                <strong>Memo Content:</strong>
+                                <div class="memo-preview memo-content-preview" data-node-id="{{ node.id }}">{{ memo.content }}</div>
+                                {% if memo.notes %}
+                                <div class="mt-3">
+                                    <strong>Notes:</strong>
+                                    <div class="memo-preview memo-notes-preview" data-node-id="{{ node.id }}">{{ memo.notes }}</div>
+                                </div>
+                                {% endif %}
+                                {% else %}
+                                <div class="alert alert-info mb-0 memo-empty-alert">
+                                    <i class="fas fa-info-circle"></i> No memo captured yet. Use the <strong>Convert to
+                                        Memo</strong> button or add one manually below.
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="card-footer bg-light">
+                        <div class="action-buttons d-flex">
+                            <button type="button" class="btn btn-sm btn-primary toggle-form-btn"
+                                data-node-id="{{ node.id }}">
+                                <i class="fas fa-edit"></i>
+                                {% if memo %}Edit{% else %}Add{% endif %} Memo
+                            </button>
+                            {% if memo %}
+                            <button type="button" class="btn btn-sm btn-danger delete-memo-btn"
+                                data-node-id="{{ node.id }}" data-question-number="{{ node.number }}">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Memo Form (hidden) -->
+                    <div class="memo-form" id="form-{{ node.id }}">
+                        <div class="card-body border-top">
+                            <form class="memo-save-form" data-node-id="{{ node.id }}" data-paper-id="{{ paper.id }}">
+                                {% csrf_token %}
+
+                                <div class="mb-3">
+                                    <label for="content-{{ node.id }}" class="form-label">
+                                        <strong>Memo Content <span class="text-danger">*</span></strong>
+                                    </label>
+                                    <textarea id="content-{{ node.id }}" class="form-control memo-content"
+                                        name="content" rows="6" placeholder="Enter the memo/answer for this question..."
+                                        required>{{ memo.content|default:"" }}</textarea>
+                                    <small class="text-muted d-block mt-2">
+                                        💡 Tip: Use clear formatting, bullet points, and step-by-step explanations.
+                                    </small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="notes-{{ node.id }}" class="form-label">
+                                        Additional Notes (Optional)
+                                    </label>
+                                    <textarea id="notes-{{ node.id }}" class="form-control memo-notes" name="notes"
+                                        rows="3"
+                                        placeholder="Any additional notes, warnings, or clarifications...">{{ memo.notes|default:"" }}</textarea>
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-save"></i> Save Memo
+                                    </button>
+                                    <button type="button" class="btn btn-secondary toggle-form-btn"
+                                        data-node-id="{{ node.id }}">
+                                        <i class="fas fa-times"></i> Cancel
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                </div>
+                {% endwith %}
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i> No questions found in this paper.
+            </div>
+            {% endif %}
+
+        </div>
+
+        <!-- Preview Tab -->
+        <div id="previewTab" class="tab-pane fade">
+            <div class="card">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Memo Preview</h5>
+                    {% if paper.memo %}
+                    <a href="{% url 'view_randomised_paper_memo' paper.id %}" class="btn btn-sm btn-primary"
+                        target="_blank">
+                        <i class="fas fa-expand"></i> Full View
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if paper.memo %}
+                    <iframe id="memoPreviewFrame" src="{% url 'view_randomised_paper_memo' paper.id %}" width="100%"
+                        height="600" style="border: none; border-radius: 0.25rem;"></iframe>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        Add memos to questions above to generate a preview.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Toast Notifications -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="successToast" class="toast" role="alert">
+        <div class="toast-header bg-success text-white">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong class="me-auto">Success</strong>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body" id="toastMessage"></div>
+    </div>
+</div>
+
+<script>
+    // Template filter helper for dict access in JS
+    function getItemFromDict(dict, key) {
+        return dict[key];
+    }
+
+    const PAPER_ID = "{{ paper.id }}";
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || "{{ csrf_token }}";
+    const convertUrlTemplate = `{% url 'convert_question_to_memo' 'PAPER_ID' 'NODE_ID' %}`;
+    const updateBlockUrlTemplate = `{% url 'update_question_block' 'PAPER_ID' 'NODE_ID' %}`;
+    const finalizeUrl = `{% url 'finalize_randomised_paper_memo' paper.id %}`;
+
+    // Update memo count on page load
+    function updateMemoCount() {
+        const totalQuestions = document.querySelectorAll('[data-node-id]').length;
+        const withMemo = document.querySelectorAll('[data-node-id].has-memo').length;
+        document.getElementById('memoCount').textContent = withMemo;
+        const finalizeBtn = document.getElementById('finalizeMemoBtn');
+        if (finalizeBtn) {
+            finalizeBtn.disabled = withMemo !== totalQuestions;
+        }
+    }
+
+    // Toggle form visibility
+    document.querySelectorAll('.toggle-form-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const nodeId = this.dataset.nodeId;
+            const form = document.getElementById(`form-${nodeId}`);
+            form.classList.toggle('show');
+        });
+    });
+
+    // Save memo form handler
+    document.querySelectorAll('.memo-save-form').forEach(form => {
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const nodeId = this.dataset.nodeId;
+            const content = this.querySelector('.memo-content').value.trim();
+            const notes = this.querySelector('.memo-notes').value.trim();
+
+            if (!content) {
+                alert('Please enter memo content');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('content', content);
+            formData.append('notes', notes);
+            formData.append('csrfmiddlewaretoken', csrftoken);
+
+            try {
+                const response = await fetch(
+                    `{% url 'save_question_memo' 'PAPER_ID' 'NODE_ID' %}`.replace('PAPER_ID', PAPER_ID).replace('NODE_ID', nodeId),
+                    {
+                        method: 'POST',
+                        body: formData
+                    }
+                );
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update card styling
+                    const card = document.querySelector(`[data-node-id="${nodeId}"]`);
+                    card.classList.add('has-memo');
+
+                    // Toggle form
+                    document.getElementById(`form-${nodeId}`).classList.remove('show');
+
+                    // Show toast
+                    showToast(data.message);
+
+                    // Update count
+                    updateMemoCount();
+
+                    // Reload preview if visible
+                    const previewFrame = document.getElementById('memoPreviewFrame');
+                    if (previewFrame) {
+                        previewFrame.src = previewFrame.src;
+                    }
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to save memo');
+            }
+        });
+    });
+
+    // Delete memo handler
+    document.querySelectorAll('.delete-memo-btn').forEach(btn => {
+        btn.addEventListener('click', async function () {
+            const nodeId = this.dataset.nodeId;
+            const questionNumber = this.dataset.questionNumber;
+
+            if (!confirm(`Delete memo for Q${questionNumber}?\n\nThis cannot be undone.`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(
+                    `{% url 'delete_question_memo' 'PAPER_ID' 'NODE_ID' %}`.replace('PAPER_ID', PAPER_ID).replace('NODE_ID', nodeId),
+                    {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRFToken': csrftoken
+                        }
+                    }
+                );
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update card styling
+                    const card = document.querySelector(`[data-node-id="${nodeId}"]`);
+                    card.classList.remove('has-memo');
+                    card.querySelector('.toggle-form-btn').innerHTML = '<i class="fas fa-edit"></i> Add Memo';
+
+                    // Remove delete button
+                    this.remove();
+
+                    // Show toast
+                    showToast(data.message);
+
+                    // Update count
+                    updateMemoCount();
+
+                    // Reload preview
+                    const previewFrame = document.getElementById('memoPreviewFrame');
+                    if (previewFrame) {
+                        previewFrame.src = previewFrame.src;
+                    }
+                } else {
+                    alert('Error: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Failed to delete memo');
+            }
+        });
+    });
+
+    // Convert question content into memo entry
+    document.querySelectorAll('.convert-to-memo-btn').forEach(btn => {
+        btn.addEventListener('click', async function () {
+            const nodeId = this.dataset.nodeId;
+            const textarea = document.getElementById(`paperContent-${nodeId}`);
+            const memoSource = textarea ? textarea.value.trim() : '';
+
+            if (!memoSource) {
+                alert('Nothing to convert. Please ensure the question text contains the memo answers.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('memo_text', memoSource);
+            formData.append('csrfmiddlewaretoken', csrftoken);
+
+            try {
+                const response = await fetch(
+                    convertUrlTemplate.replace('PAPER_ID', PAPER_ID).replace('NODE_ID', nodeId),
+                    {
+                        method: 'POST',
+                        body: formData
+                    }
+                );
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Failed to convert memo');
+                }
+
+                showToast(data.message);
+
+                // Update memo preview + hidden form values
+                const card = document.querySelector(`[data-node-id="${nodeId}"]`);
+                const memoColumn = card?.querySelector(`.memo-column[data-memo-column="${nodeId}"]`);
+
+                let memoPreview = memoColumn?.querySelector(`.memo-content-preview[data-node-id="${nodeId}"]`);
+                if (!memoPreview && memoColumn) {
+                    memoColumn.innerHTML = `
+                        <strong>Memo Content:</strong>
+                        <div class="memo-preview memo-content-preview" data-node-id="${nodeId}"></div>
+                    `;
+                    memoPreview = memoColumn.querySelector(`.memo-content-preview[data-node-id="${nodeId}"]`);
+                }
+                if (memoPreview) {
+                    memoPreview.textContent = data.memo_content || memoSource;
+                }
+
+                let notesPreview = memoColumn?.querySelector(`.memo-notes-preview[data-node-id="${nodeId}"]`);
+                if (!notesPreview && memoColumn && data.notes) {
+                    memoColumn.insertAdjacentHTML('beforeend', `
+                        <div class="mt-3">
+                            <strong>Notes:</strong>
+                            <div class="memo-preview memo-notes-preview" data-node-id="${nodeId}"></div>
+                        </div>
+                    `);
+                    notesPreview = memoColumn.querySelector(`.memo-notes-preview[data-node-id="${nodeId}"]`);
+                }
+                if (notesPreview && data.notes !== undefined) {
+                    notesPreview.textContent = data.notes;
+                }
+
+                const memoTextarea = document.getElementById(`content-${nodeId}`);
+                if (memoTextarea) memoTextarea.value = data.memo_content || memoSource;
+
+                card?.classList.add('has-memo');
+                updateMemoCount();
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+    });
+
+    // Save paper block edits
+    document.querySelectorAll('.save-paper-btn').forEach(btn => {
+        btn.addEventListener('click', async function () {
+            const nodeId = this.dataset.nodeId;
+            const textarea = document.getElementById(`paperContent-${nodeId}`);
+            const paperText = textarea ? textarea.value.trim() : '';
+
+            if (!paperText) {
+                alert('Paper block cannot be empty.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('text', paperText);
+            formData.append('csrfmiddlewaretoken', csrftoken);
+
+            try {
+                const response = await fetch(
+                    updateBlockUrlTemplate.replace('PAPER_ID', PAPER_ID).replace('NODE_ID', nodeId),
+                    {
+                        method: 'POST',
+                        body: formData
+                    }
+                );
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || 'Failed to save block');
+                }
+                showToast(data.message);
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+    });
+
+    // Finalize memo package when all questions are handled
+    document.getElementById('finalizeMemoBtn')?.addEventListener('click', async function () {
+        if (this.disabled) {
+            return;
+        }
+        try {
+            const response = await fetch(finalizeUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrftoken
+                }
+            });
+            const data = await response.json();
+            if (!response.ok) {
+                throw new Error(data.message || 'Unable to finalize memo');
+            }
+            showToast(data.message);
+        } catch (error) {
+            alert(error.message);
+        }
+    });
+
+    // Toast notification helper
+    function showToast(message) {
+        const toast = document.getElementById('successToast');
+        document.getElementById('toastMessage').textContent = message;
+        const bsToast = new bootstrap.Toast(toast);
+        bsToast.show();
+    }
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', updateMemoCount);
+</script>
+
+<!-- Add custom template filter for dict access -->
+<script>
+    {% if memos %}
+    window.memos = {{ memos | safe }};
+    {% endif %}
+</script>
+
+{% endblock %}

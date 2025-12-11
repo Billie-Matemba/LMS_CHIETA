@@ -259,9 +259,7 @@
 # }
 
 # # Media files
-
-# AWS_ACCESS_KEY_ID = 'AKIA3NHA75JLXPRPPDOM'
-# AWS_SECRET_ACCESS_KEY = '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'
+# Removed AWS credentials - use environment variables instead
 # AWS_STORAGE_BUCKET_NAME = 'chieta-media'
 # AWS_S3_REGION_NAME = 'us-west-2'
 # AWS_S3_FILE_OVERWRITE = False
@@ -400,16 +398,24 @@ TEMPLATES = [
 WSGI_APPLICATION = 'core.wsgi.application'
 
 # Database
+
+
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'chietalms_db',
-        'USER': 'chietalms_db_user',
-        'PASSWORD': 'STJoCuJLFlsxBIYFbYXF1WbUUfytDLSK',
-        'HOST': 'dpg-d4i6bb3uibrs73e0p4n0-a.oregon-postgres.render.com',
-        'PORT': '5432',
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'chietalms_db',
+#         'USER': 'chietalms_db_user',
+#         'PASSWORD': 'STJoCuJLFlsxBIYFbYXF1WbUUfytDLSK',
+#         'HOST': 'dpg-d4i6bb3uibrs73e0p4n0-a.oregon-postgres.render.com',
+#         'PORT': '5432',
+#     }
+# }
 
 # DATABASES = {
 #    'default': {

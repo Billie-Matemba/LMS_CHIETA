@@ -21,6 +21,8 @@
     .pdf-node__table td, .pdf-node__table th { border: 1px solid #d1d5db; padding: 6px; }
     .pdf-node__image img { max-width: 100%; margin-top: 0.5rem; }
     .pdf-node__children { margin-left: 1.5rem; border-left: 2px solid rgba(58, 6, 58, 0.15); padding-left: 1rem; margin-top: 0.5rem; }
+    .pdf-node__memo { margin-top: 0.75rem; padding: 0.5rem 0.75rem; background: #ecfdf5; border-left: 3px solid #0f766e; font-size: 0.9rem; }
+    .pdf-node__memo strong { display: block; margin-bottom: 0.25rem; color: #065f46; }
   </style>
 </head>
 <body>
@@ -38,7 +40,7 @@
 
   <section>
     {% for node in node_tree %}
-      {% include 'core/assessor-developer/_pdf_node.html' with node=node %}
+      {% include 'core/assessor-developer/_pdf_node.html' with node=node memo_mode=memo_mode question_memos=question_memos %}
     {% endfor %}
   </section>
 </body>

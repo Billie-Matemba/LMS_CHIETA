@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Assessor Developer{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1><i class="fas fa-tools"></i> Assessor Developer</h1>
+        </div>
+    </div>
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#viewPoolsTab">
+                <i class="fas fa-layer-group"></i> View Pools
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#memoRandomTab">
+                <i class="fas fa-random"></i> Memo Randomisation
+            </a>
+        </li>
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+
+        <!-- View Pools Tab (Existing) -->
+        <div id="viewPoolsTab" class="tab-pane fade show active">
+            <!-- ...existing viewpools content... -->
+            {% include 'partials/viewpools.html' %}
+        </div>
+
+        <!-- Memo Randomisation Tab -->
+        <div id="memoRandomTab" class="tab-pane fade">
+
+            {% if selected_paper %}
+            <!-- Memo Randomisation Partial -->
+            {% include 'partials/memo_paper_randomisation.html' %}
+
+            {% else %}
+            <!-- Paper Selector -->
+            <div class="card mb-4 border-info">
+                <div class="card-header bg-info text-white">
+                    <i class="fas fa-file-pdf"></i> Select a Paper
+                </div>
+                <div class="card-body">
+                    <form method="GET" class="row g-3">
+                        <div class="col-md-9">
+                            <label for="paperSelect" class="form-label"><strong>Choose Paper</strong></label>
+                            <select id="paperSelect" name="paper_id" class="form-select form-select-lg" required
+                                onchange="this.form.submit()">
+                                <option value="">-- Select a paper --</option>
+                                {% for paper in papers %}
+                                <option value="{{ paper.id }}">
+                                    {{ paper.name }} ({{ paper.nodes.count }} nodes, {{ paper.total_marks }} marks)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary btn-lg w-100">
+                                <i class="fas fa-search"></i> Load
+                            </button>
+                        </div>
+                    </form>
+
+                    {% if not papers %}
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> No papers available
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}

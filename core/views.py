@@ -8,6 +8,7 @@ import re
 import time
 import traceback
 import uuid
+from collections import deque
 from copy import deepcopy
 from decimal import Decimal, InvalidOperation
 import google.generativeai as genai
@@ -43,7 +44,15 @@ from django.core.exceptions import ValidationError
 from docx import Document
 from docx.shared import Inches
 import os
-from .models import OfflineStudent, Qualification, ExtractorBlockImage, ExamAnswer, ExtractorBlock, ExtractorPaper, ExtractorTestItem, ExtractorTestPaper,ExtractorUserBox
+from .models import (
+    Qualification, 
+    ExamAnswer, 
+    Assessment,
+    Paper,
+    ExamNode,
+    PaperMemo,
+    QuestionMemo
+)
 from .forms import StudentRegistrationForm
 
 from robustexamextractor import extract_docx, save_robust_extraction_to_db
@@ -72,6 +81,8 @@ from .models import (
     Qualification,
     QuestionBankEntry,
     OfflineStudent,
+    ExtractorUserBox,
+    ExtractorPaper,
 )
 from . import extractor_views
 from .question_bank import QUESTION_BANK
@@ -1620,14 +1631,21 @@ def assessor_pool_randomize(request):
     module_letter = (
         "".join(ch for ch in letter_raw if ch.isalpha()) or letter_raw
     ).upper()
-    mode = (request.POST.get("mode") or "pool").strip().lower()
-    if mode not in {"pool", "base"}:
-        mode = "pool"
+    requested_mode = (request.POST.get("mode") or "pool").strip().lower()
+    if requested_mode not in {"pool", "base"}:
+        requested_mode = "pool"
+    mode = requested_mode
+    fallback_to_pool = False
+    fallback_reason = None
+
+    def json_error(message, *, missing=None, http_status=200):
+        payload = {"ok": False, "message": message}
+        if missing:
+            payload["missing"] = missing
+        return JsonResponse(payload, status=http_status)
 
     if not module_name or not module_letter:
-        return JsonResponse(
-            {"ok": False, "message": "Module and letter are required."}, status=400
-        )
+        return json_error("Module and letter are required.")
 
     user = request.user
     user_role = getattr(user, "role", "")
@@ -1645,103 +1663,50 @@ def assessor_pool_randomize(request):
             status=403,
         )
 
-    assessment_base_qs = Assessment.objects.select_related(
-        "paper_link", "extractor_paper", "qualification"
-    ).filter(
-        module_name__iexact=module_name,
-        paper_link__isnull=False,
-        paper_link__is_randomized=False,
-    )
-
-    if user_qualification and not (
-        user.is_staff or user.is_superuser or user_role in {"admin", "moderator"}
-    ):
-        assessment_base_qs = assessment_base_qs.filter(qualification=user_qualification)
-
-    base_assessment = (
-        assessment_base_qs.filter(module_number__iexact=module_letter)
-        .order_by("-paper_link__updated_at", "-paper_link__id")
-        .first()
-    ) or (
-        assessment_base_qs.order_by(
-            "-paper_link__updated_at", "-paper_link__id"
-        ).first()
-    )
-
-    base_paper = (
-        base_assessment.paper_link
-        if (base_assessment and base_assessment.paper_link_id)
-        else None
-    )
-    base_extractor = (
-        base_assessment.extractor_paper
-        if (base_assessment and base_assessment.extractor_paper_id)
-        else None
-    )
+    base_assessment = None
+    base_paper = None
+    base_extractor = None
+    if base_extractor is None:
+        fallback_extractor = (
+            ExtractorPaper.objects.filter(
+                module_name__iexact=module_name, paper_letter__iexact=module_letter
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        if fallback_extractor:
+            base_extractor = fallback_extractor
     try:
         pool_info = collect_randomization_pool(
             module_name, module_letter, base_extractor
         )
     except RandomizationPoolError as exc:
-        return JsonResponse({"ok": False, "message": str(exc)}, status=400)
+        return json_error(str(exc))
 
     # If using base blueprint, ensure pool coverage for its question numbers
     if mode == "base":
-        if base_paper is None:
-            return JsonResponse(
-                {
-                    "ok": False,
-                    "message": "No base paper found for this module and letter. Switch to pool-only mode or capture the original paper first.",
-                },
-                status=400,
-            )
         pool_by_number = pool_info["pool_by_number"]
-        blueprint_nodes = ExamNode.objects.filter(
-            paper=base_paper, node_type="question"
-        ).order_by("order_index")
-        missing_numbers: list[str] = []
-        seen_numbers: set[str] = set()
-        for node in blueprint_nodes:
-            number = (node.number or "").strip()
-            if not number or number in seen_numbers:
-                continue
-            seen_numbers.add(number)
-            if (number, "question") not in pool_by_number:
-                missing_numbers.append(number)
-
-        if missing_numbers:
-            return JsonResponse(
-                {
-                    "ok": False,
-                    "message": "Not enough captured blocks to randomize this module. Capture the missing question numbers and try again.",
-                    "missing": missing_numbers,
-                },
-                status=400,
-            )
-    elif mode == "pool":
+        question_numbers = sorted(
+            {k[0] for k in pool_by_number.keys() if k[1] == "question" and k[0]},
+            key=lambda val: [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", val)],
+        )
+        if not question_numbers:
+            return json_error("Pool has no question blocks. Capture question boxes first.")
+    else:
         missing_numbers = calculate_pool_gaps(pool_info)
         if missing_numbers:
-            return JsonResponse(
-                {
-                    "ok": False,
-                    "message": "Snapshot pool has gaps. Capture the listed question numbers and try again.",
-                    "missing": missing_numbers,
-                },
-                status=400,
+            return json_error(
+                "Snapshot pool has gaps. Capture the listed question numbers (and ensure each block's parent number is saved correctly) before retrying.",
+                missing=missing_numbers,
             )
 
-    qualification = (
-        user_qualification
-        or (base_assessment.qualification if base_assessment else None)
-        or (base_paper.qualification if base_paper else None)
-    )
+    qualification = user_qualification or Qualification.objects.filter(
+        name__iexact=module_name
+    ).first()
     if qualification is None:
-        return JsonResponse(
-            {
-                "ok": False,
-                "message": "You do not have a qualification set in your profile.",
-            },
-            status=400,
+        qualification, _ = Qualification.objects.get_or_create(
+            name=module_name,
+            defaults={"saqa_id": f"AUTO-{module_letter}"},
         )
 
     created_by = request.user if request.user.is_authenticated else None
@@ -1757,8 +1722,7 @@ def assessor_pool_randomize(request):
 
     try:
         if mode == "base":
-            result = build_randomized_structure_from_pool(
-                base_paper,
+            result = build_randomized_from_pool_only(
                 new_paper,
                 module_name,
                 module_letter,
@@ -1773,7 +1737,7 @@ def assessor_pool_randomize(request):
             )
     except RandomizationPoolError as exc:
         new_paper.delete()
-        return JsonResponse({"ok": False, "message": str(exc)}, status=400)
+        return json_error(str(exc))
 
     total_marks = result.get("total_marks", 0)
     pool_size = result.get("pool_size", 0)
@@ -1800,10 +1764,15 @@ def assessor_pool_randomize(request):
         "base_paper_id": base_paper.id if base_paper else None,
         "source": "pool_modal",
         "mode": mode,
+        "requested_mode": requested_mode,
         "snapshot_pool_used": pool_used,
         "snapshot_pool_size": pool_size,
         "last_refreshed": now().isoformat(),
     }
+    if fallback_to_pool:
+        meta_payload["randomization"]["fallback_to_pool"] = True
+        if fallback_reason:
+            meta_payload["randomization"]["fallback_reason"] = fallback_reason
     if selected_boxes:
         meta_payload["randomization"]["selected_boxes"] = selected_boxes
     if qual_name:
@@ -1884,16 +1853,18 @@ def assessor_pool_randomize(request):
         }
     )
     snapshot_url = f"{reverse('assessor_randomized_snapshot', args=[new_assessment.id])}?{snapshot_params}"
-    return JsonResponse(
-        {
-            "ok": True,
-            "message": "Randomized paper ready.",
-            "snapshot_url": snapshot_url,
-            "download_url": reverse(
-                "download_randomized_pdf", args=[new_assessment.id]
-            ),
-        }
-    )
+    response_message = "Randomized paper ready."
+    if fallback_to_pool and fallback_reason:
+        response_message = f"{response_message} {fallback_reason}"
+    response_payload = {
+        "ok": True,
+        "message": response_message,
+        "snapshot_url": snapshot_url,
+        "download_url": reverse("download_randomized_pdf", args=[new_assessment.id]),
+    }
+    if fallback_to_pool:
+        response_payload["fallback_to_pool"] = True
+    return JsonResponse(response_payload)
 
 
 @login_required
@@ -1926,6 +1897,21 @@ def download_randomized_pdf(request, assessment_id):
             raise Http404("Assessment not available")
 
     node_tree, node_stats = build_node_tree(paper)
+    memo_variant = (request.GET.get("variant") or "").lower()
+    memo_mode = memo_variant in {"memo", "answers", "memo_only"}
+    memo_lookup = {}
+    if memo_mode:
+        try:
+            paper_memo = paper.memo
+        except PaperMemo.DoesNotExist:
+            paper_memo = None
+        if paper_memo:
+            for memo in paper_memo.questions.all():
+                memo_lookup[str(memo.exam_node_id)] = {
+                    "content": memo.content,
+                    "notes": memo.notes,
+                }
+
     context = {
         "assessment": assessment,
         "paper": paper,
@@ -1933,6 +1919,8 @@ def download_randomized_pdf(request, assessment_id):
         "node_stats": node_stats,
         "generated_at": timezone.now(),
         "requested_by": request.user,
+        "memo_mode": memo_mode,
+        "question_memos": memo_lookup,
     }
 
     req_format = (request.GET.get("format") or "pdf").lower()
@@ -1940,7 +1928,10 @@ def download_randomized_pdf(request, assessment_id):
     if req_format == "docx":
         # Build a Word document from the node_tree
         doc = Document()
-        doc.add_heading(f"{assessment.eisa_id} - {paper.name}", level=1)
+        heading_label = f"{assessment.eisa_id} - {paper.name}"
+        if memo_mode:
+            heading_label = f"{heading_label} | Answer Key"
+        doc.add_heading(heading_label, level=1)
         if getattr(assessment, "qualification", None):
             doc.add_paragraph(f"Qualification: {assessment.qualification.name}")
         doc.add_paragraph(f"Generated: {timezone.now().isoformat()}")
@@ -1950,6 +1941,8 @@ def download_randomized_pdf(request, assessment_id):
         def _render_node_to_doc(node, level=2):
             ntype = (node.get("node_type") or "").lower()
             number = node.get("number") or ""
+            node_id = str(node.get("id") or "")
+
             if ntype == "cover_page":
                 doc.add_heading("Cover Page", level=level)
             elif ntype == "instruction":
@@ -2213,13 +2206,28 @@ def download_randomized_pdf(request, assessment_id):
             for child in node.get("children") or []:
                 _render_node_to_doc(child, level=level + 1)
 
+            if memo_mode and ntype == "question":
+                memo_entry = memo_lookup.get(node_id, {})
+                memo_text = memo_entry.get("content") or ""
+                memo_notes = memo_entry.get("notes") or ""
+                doc.add_paragraph("Memo Answer:")
+                if memo_text:
+                    for line in memo_text.splitlines():
+                        doc.add_paragraph(line or "")
+                else:
+                    doc.add_paragraph("[No memo captured]")
+                if memo_notes:
+                    doc.add_paragraph(f"Notes: {memo_notes}")
+                doc.add_paragraph("")
+
         for node in node_tree:
             _render_node_to_doc(node, level=2)
 
         out = BytesIO()
         doc.save(out)
         out.seek(0)
-        filename = f"{assessment.eisa_id}_{paper.name.replace(' ', '_')}.docx"
+        suffix = "_memo" if memo_mode else ""
+        filename = f"{assessment.eisa_id}_{paper.name.replace(' ', '_')}{suffix}.docx"
         response = HttpResponse(
             out.getvalue(),
             content_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -2257,7 +2265,8 @@ def download_randomized_pdf(request, assessment_id):
         return redirect(referer)
 
     pdf_buffer.seek(0)
-    filename = f"{assessment.eisa_id}_{paper.name.replace(' ', '_')}.pdf"
+    suffix = "_memo" if memo_mode else ""
+    filename = f"{assessment.eisa_id}_{paper.name.replace(' ', '_')}{suffix}.pdf"
     response = HttpResponse(pdf_buffer.getvalue(), content_type="application/pdf")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
@@ -2433,7 +2442,7 @@ def assessor_randomized_snapshot(request, assessment_id):
                 update_fields=["status", "status_changed_at", "status_changed_by"]
             )
             messages.success(
-                request, f"{assessment.eisa_id} status updated to {assessment.status}."
+                request, f"{assessment.eisa_id} forwarded to {status_lookup[action]}."
             )
             return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
         
@@ -2465,9 +2474,112 @@ def assessor_randomized_snapshot(request, assessment_id):
                         "status_changed_by",
                     ]
                 )
-                messages.success(
-                    request, f"{assessment.eisa_id} forwarded to the moderator queue."
+            messages.success(
+                request, f"{assessment.eisa_id} forwarded to the moderator queue."
+            )
+            return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
+
+        if action == "save_node_content":
+            node_id = request.POST.get("node_id")
+            if not (paper and node_id):
+                messages.error(request, "Select a block before saving edits.")
+                return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
+            node = paper.nodes.filter(id=node_id).first()
+            if not node:
+                messages.error(request, "Block not found.")
+                return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
+
+            new_number = (request.POST.get("node_number") or "").strip()
+            new_marks = (request.POST.get("node_marks") or "").strip()
+            new_text = (request.POST.get("node_text") or "").strip()
+            raw_content = request.POST.get("node_content_json") or "[]"
+            try:
+                parsed_content = json.loads(raw_content)
+            except json.JSONDecodeError:
+                parsed_content = []
+            if not isinstance(parsed_content, list):
+                parsed_content = [parsed_content]
+
+            update_fields = []
+            node.number = new_number
+            update_fields.append("number")
+            node.marks = new_marks
+            update_fields.append("marks")
+            node.text = new_text
+            update_fields.append("text")
+            node.content = parsed_content
+            update_fields.append("content")
+            node.save(update_fields=list(dict.fromkeys(update_fields)))
+            messages.success(
+                request,
+                f"Saved edits for block {node.number or node.order_index or node.id}.",
+            )
+            return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
+
+        if action == "add_corresponding_memo":
+            node_id = request.POST.get("node_id")
+            if not (paper and node_id):
+                messages.error(request, "Select a block before adding a memo.")
+                return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
+            node = paper.nodes.filter(id=node_id).first()
+            if not node:
+                messages.error(request, "Block not found.")
+                return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
+
+            editor_mode = (request.POST.get("editor_mode") or "paper").strip().lower()
+            memo_text_field = (request.POST.get("memo_text") or "").strip()
+            memo_notes = (request.POST.get("memo_notes") or "").strip()
+
+            def _capture_from_node():
+                content_payload = node.content if isinstance(node.content, list) else []
+                text_parts = []
+                for item in content_payload or []:
+                    if isinstance(item, dict):
+                        txt = (item.get("text") or "").strip()
+                        if txt:
+                            text_parts.append(txt)
+                combined = "\n".join(text_parts).strip()
+                return combined or (node.text or "").strip()
+
+            if editor_mode == "memo":
+                memo_text = memo_text_field or (request.POST.get("node_text") or "").strip() or _capture_from_node()
+            else:
+                memo_text = memo_text_field or _capture_from_node()
+
+            if not memo_text:
+                hint = (
+                    "Add the memo text back into this block (or switch to Paper mode to type it manually)."
+                    if editor_mode == "memo"
+                    else "Please type the memo/answer content before saving."
                 )
+                messages.error(request, hint)
+                return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
+
+            paper_memo, _ = PaperMemo.objects.get_or_create(
+                paper=paper,
+                defaults={"created_by": request.user if request.user.is_authenticated else None},
+            )
+            question_label = node.number or f"{node.order_index or '?'}"
+            q_memo, created = QuestionMemo.objects.update_or_create(
+                paper_memo=paper_memo,
+                exam_node=node,
+                defaults={
+                    "question_number": question_label,
+                    "content": memo_text,
+                    "notes": memo_notes,
+                },
+            )
+            action_label = "Created" if created else "Updated"
+
+            if editor_mode == "memo":
+                confirmation = (
+                    f"Saved memo for block {question_label}. "
+                    "You can now edit the learner-facing block manually."
+                )
+            else:
+                confirmation = f"{action_label} memo for block {question_label}."
+
+            messages.success(request, confirmation)
             return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
         
         if action == "open_pipeline":
@@ -2844,6 +2956,81 @@ def assessor_randomized_snapshot(request, assessment_id):
             "instructions": 0,
         }
 
+    def _attach_content_json(nodes):
+        for item in nodes:
+            content_payload = item.get("content") or []
+            try:
+                item["content_json"] = json.dumps(content_payload)
+            except TypeError:
+                item["content_json"] = json.dumps([])
+            children = item.get("children") or []
+            if children:
+                _attach_content_json(children)
+
+    _attach_content_json(node_tree)
+
+    def _parse_box_content(raw_content):
+        if not raw_content:
+            return []
+        try:
+            data = json.loads(raw_content)
+        except (TypeError, ValueError):
+            return []
+        if isinstance(data, dict):
+            items = data.get("items")
+            if isinstance(items, list):
+                return items
+            items = data.get("content")
+            if isinstance(items, list):
+                return items
+            return []
+        if isinstance(data, list):
+            return data
+        return []
+
+    cover_box_content = {}
+    if isinstance(random_meta, dict):
+        selected_boxes_meta = random_meta.get("selected_boxes") or []
+    else:
+        selected_boxes_meta = []
+    if selected_boxes_meta:
+        cover_queue = deque(
+            [
+                entry
+                for entry in selected_boxes_meta
+                if (entry.get("node_type") or "").lower() == "cover_page"
+                and entry.get("box_id")
+            ]
+        )
+
+        node_cover_box_map = {}
+
+        def _assign_cover_boxes(nodes):
+            for entry in nodes:
+                ntype = (entry.get("node_type") or "").lower()
+                if ntype == "cover_page" and cover_queue:
+                    cover_entry = cover_queue.popleft()
+                    box_id = cover_entry.get("box_id")
+                    if box_id:
+                        node_cover_box_map[str(entry.get("id"))] = box_id
+                children = entry.get("children") or []
+                if children:
+                    _assign_cover_boxes(children)
+
+        _assign_cover_boxes(node_tree)
+
+        if node_cover_box_map:
+            box_ids = list({bid for bid in node_cover_box_map.values() if bid})
+            boxes = ExtractorUserBox.objects.filter(id__in=box_ids)
+            box_lookup = {box.id: box for box in boxes}
+            for node_id, box_id in node_cover_box_map.items():
+                box = box_lookup.get(box_id)
+                if not box or not box.content:
+                    continue
+                payload = _parse_box_content(box.content)
+                if payload:
+                    cover_box_content[node_id] = payload
+
     cover_nodes = [
         node
         for node in node_tree
@@ -2854,6 +3041,19 @@ def assessor_randomized_snapshot(request, assessment_id):
         for node in node_tree
         if (node.get("node_type") or "").lower() == "question"
     ]
+
+    memo_lookup = {}
+    if paper:
+        try:
+            paper_memo = paper.memo
+        except PaperMemo.DoesNotExist:
+            paper_memo = None
+        if paper_memo:
+            for memo in paper_memo.questions.all():
+                memo_lookup[str(memo.exam_node_id)] = {
+                    "content": memo.content,
+                    "notes": memo.notes,
+                }
 
     snapshots_qs = (
         Assessment.objects.filter(
@@ -2889,6 +3089,7 @@ def assessor_randomized_snapshot(request, assessment_id):
         "random_meta": random_meta,
         "cover_nodes": cover_nodes,
         "question_nodes": question_nodes,
+        "node_memos": memo_lookup,
         "base_paper": base_paper,
         "module_name_meta": module_name_meta,
         "module_number_meta": module_number_meta,
@@ -2906,6 +3107,7 @@ def assessor_randomized_snapshot(request, assessment_id):
         "memo_requirement_message": memo_requirement_message,
         "has_memo": has_memo,
         "memo_filename": assessment.memo_file.name if assessment.memo_file else None,
+        "cover_box_content": cover_box_content,
     }
     return render(request, "core/assessor-developer/randomized_snapshot.html", context)
 
@@ -3099,7 +3301,7 @@ def upload_assessment(request):
                 if option.get("code") == module_number:
                     module_name = option.get("label") or module_number
                     break
-        saqa = (
+        saqa_id = (
             request.POST.get("saqa_id") or saqa_map.get(str(qualification_obj.pk)) or ""
         ).strip()
         file = request.FILES.get("file_input")
@@ -3161,9 +3363,9 @@ def upload_assessment(request):
 
         default_module_code = next(
             (
-                opt.get("code")
-                for opt in module_map.get(str(qualification_obj.pk), [])
-                if opt.get("code")
+                mod.get("code")
+                for mod in module_map.get(str(qualification_obj.pk), [])
+                if mod.get("code")
             ),
             "1A",
         )
@@ -3173,7 +3375,7 @@ def upload_assessment(request):
             paper=paper_number,
             module_number=module_number or default_module_code,
             module_name=module_name or qualification_obj.name,
-            saqa_id=saqa,
+            saqa_id=saqa_id,
             file=file,
             memo=memo,
             comment=comment,
@@ -3181,6 +3383,7 @@ def upload_assessment(request):
             created_by=request.user,
             paper_link=paper_obj,
             status=status,
+            paper_type='admin_upload',  # Explicitly set paper type
         )
 
         sync_assessment_paper_bank(assessment_obj, force=True)
@@ -3367,8 +3570,6 @@ def qcto_dashboard(request):
 
 
 # 2) QCTO Moderate Assessment: view + update status and notes
-
-
 @require_http_methods(["GET", "POST"])
 def qcto_moderate_assessment(request, eisa_id):
     """
@@ -3378,13 +3579,12 @@ def qcto_moderate_assessment(request, eisa_id):
     assessment = get_object_or_404(Assessment, eisa_id=eisa_id)
 
     if assessment.status != "Submitted to QCTO":
-
         messages.error(request, "This assessment is not pending QCTO review.")
         return redirect("qcto_dashboard")
 
     if request.method == "POST":
         notes = request.POST.get("qcto_notes", "").strip()
-        decision = request.POST.get("decision")  # now 'approve' or 'reject'
+        decision = request.POST.get("decision")  # either 'approve' or 'reject'
 
         if decision == "approve":
             assessment.status = "Submitted to ETQA"
@@ -3417,7 +3617,6 @@ def qcto_moderate_assessment(request, eisa_id):
         )
         return redirect("qcto_dashboard")
 
-    # on GET, render the form
     return render(
         request,
         "core/qcto/qcto_moderate_assessment.html",

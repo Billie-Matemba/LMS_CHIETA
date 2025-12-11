@@ -1,5 +1,6 @@
 {% load static %}
 {% load exam_extras %}
+{% with memo=question_memos|dict_get:node.id %}
 <div class="pdf-node pdf-node--{{ node.node_type|default_if_none:'unknown'|lower }}">
   <div class="pdf-node__header">
     {% if node.number %}
@@ -28,8 +29,23 @@
   {% if node.children %}
   <div class="pdf-node__children">
     {% for child in node.children %}
-    {% include 'core/assessor-developer/_pdf_node.html' with node=child %}
+    {% include 'core/assessor-developer/_pdf_node.html' with node=child memo_mode=memo_mode question_memos=question_memos %}
     {% endfor %}
   </div>
   {% endif %}
+
+  {% if memo_mode and node.node_type|lower == 'question' %}
+  <div class="pdf-node__memo">
+    <strong>Memo Answer:</strong>
+    {% if memo.content %}
+    <div>{{ memo.content|linebreaksbr }}</div>
+    {% else %}
+    <div>[No memo captured]</div>
+    {% endif %}
+    {% if memo.notes %}
+    <div><em>Notes:</em> {{ memo.notes }}</div>
+    {% endif %}
+  </div>
+  {% endif %}
 </div>
+{% endwith %}

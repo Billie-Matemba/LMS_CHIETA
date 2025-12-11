@@ -778,8 +778,9 @@ def build_randomized_from_pool_only(
         # record which captured box supplied this question
         try:
             bid = getattr(chosen, 'id', None)
+            number_value = qnum or f"AUTO-{order_counter}"
             selected_boxes.append({
-                'node_number': qnum,
+                'node_number': number_value,
                 'node_type': 'question',
                 'box_id': int(bid) if bid is not None else None,
             })
@@ -788,18 +789,19 @@ def build_randomized_from_pool_only(
         except Exception:
             pass
         payload, text_value, marks_value = _box_payload(chosen)
+        number_value = qnum or f"AUTO-{order_counter}"
         qnode = ExamNode.objects.create(
             paper=target_paper,
             parent=parent_node,
             node_type='question',
-            number=qnum,
+            number=number_value,
             text=text_value,
             marks=marks_value,
             content=_serialize_content(payload),
             order_index=order_counter,
         )
         order_counter += 1
-        seen_questions.add(qnum)
+        seen_questions.add(number_value)
         try:
             total_marks += int(marks_value or 0)
         except (TypeError, ValueError):

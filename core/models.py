@@ -7,13 +7,11 @@ import random
 from django.utils.html import mark_safe
 import base64 
 import uuid
+from decimal import Decimal
 
 #************************
 # Qualification creation
 #************************
-from django.db import models
-from django.core.exceptions import ValidationError
-
 class Qualification(models.Model):
     name = models.CharField(max_length=100, unique=True)
     saqa_id = models.CharField(max_length=20, unique=True)
@@ -499,275 +497,258 @@ from django.db import models
 
 
 class Paper(models.Model):
+    """Exam paper with extracted structure"""
+    id = models.CharField(max_length=40, primary_key=True, editable=False, default=uuid.uuid4)
     name = models.CharField(max_length=255)
-    qualification = models.ForeignKey(Qualification, on_delete=models.CASCADE)
-    is_randomized = models.BooleanField(default=False)
-    structure_json = models.JSONField(default=dict, blank=True)
+    qualification = models.ForeignKey(Qualification, on_delete=models.CASCADE, related_name='papers')
     total_marks = models.IntegerField(default=0)
+    
+    # Store full manifest as JSON for randomization
+    structure_json = models.JSONField(default=dict, blank=True)
+    is_randomized = models.BooleanField(default=False)
+    
+    # Parent paper (if this is randomised)
+    parent_paper = models.ForeignKey(
+        'self', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        related_name='randomised_variants'
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="papers_created"
-    )
-
-    def __str__(self):
-        return f"{self.name} ({self.qualification})"
-
-
-
-class PaperBankEntry(models.Model):
-    assessment = models.OneToOneField('Assessment', on_delete=models.CASCADE, related_name='paper_bank_entry')
-    original_file = models.FileField(upload_to='paper_bank/')
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Paper bank entry for {self.assessment.eisa_id}"
-
-
-
-
-
-class ExamNode(models.Model):
-    """Model for storing question/content nodes of a paper"""
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    paper = models.ForeignKey(Paper, on_delete=models.CASCADE, related_name='nodes')
-    parent = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='children')
-    node_type = models.CharField(max_length=20, choices=[
-        ('question', 'Question'),
-        ('table', 'Table'),
-        ('image', 'Image'),
-        ('text', 'Text'),
-        ('instruction', 'Instruction'),
-    ])
-    number = models.CharField(max_length=20, blank=True, null=True)
-    text = models.TextField(blank=True, null=True)
-    marks = models.CharField(max_length=10, blank=True, null=True)
-    content = models.JSONField(default=list, blank=True)
-    order_index = models.IntegerField(default=0)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        ordering = ['order_index']
-        indexes = [
-            models.Index(fields=['paper', 'node_type']),
-            models.Index(fields=['paper', 'number']),
-        ]
-        
-    def __str__(self):
-        return f"{self.node_type}: {self.number or 'No number'} ({self.id})"
-        
-    def clean_content(self):
-        """Ensure content is a list"""
-        if self.content is None:
-            self.content = []
-        return self.content
-
-class Feedback(models.Model):
-    assessment = models.ForeignKey(
-        Assessment,
-        on_delete=models.CASCADE,
-        related_name='feedbacks'
-    )
-    to_user = models.CharField(max_length=100)
-    message = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    STATUS_CHOICES = [
-        ("Pending", "Pending"),
-        ("Revised", "Revised"),
-        ("Completed", "Completed"),
-    ]
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="Pending")
-
-    def __str__(self):
-        return f"{self.assessment.eisa_id} → {self.to_user}"
-
-
-class RegexPattern(models.Model):
-    pattern = models.TextField()
-    description = models.TextField()
-    match_score = models.FloatField()
-    example_usage = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-##############new model for storing exam submissions ##############
-# models.py - Add grading fields to ExamSubmission
-class ExamSubmission(models.Model):
-    # Student info
-    student = models.ForeignKey(CustomUser, on_delete=models.CASCADE, null=True, blank=True)  
-    offline_student = models.ForeignKey('OfflineStudent', on_delete=models.CASCADE, null=True, blank=True)  
-    student_number = models.CharField(max_length=50)
-    student_name = models.CharField(max_length=100)
-
-    # Paper info
-    paper = models.ForeignKey(Paper, on_delete=models.SET_NULL, null=True, blank=True)
-    assessment = models.ForeignKey(Assessment, on_delete=models.SET_NULL, null=True, blank=True)
-    attempt_number = models.IntegerField()
-    pdf_file = models.FileField(upload_to='exam_submissions/%Y/%m/%d/')
-    submitted_at = models.DateTimeField(auto_now_add=True)
-    is_offline = models.BooleanField(default=False)
-
-    # Marker grading
-    marks = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    total_marks = models.DecimalField(max_digits=5, decimal_places=2, default=100.00)
-    graded_by = models.ForeignKey(
-        CustomUser,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="graded_submissions"
-    )
-    graded_at = models.DateTimeField(null=True, blank=True)
-    feedback = models.TextField(blank=True)
-    marked_paper = models.FileField(upload_to='marked_papers/marker/%Y/%m/%d/', null=True, blank=True)  # NEW FIELD
-
-    # Internal Moderator grading
-    internal_marks = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    internal_total_marks = models.DecimalField(max_digits=5, decimal_places=2, default=100.00)
-    internal_graded_by = models.ForeignKey(
-        CustomUser,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="internal_graded_submissions"
-    )
-    internal_graded_at = models.DateTimeField(null=True, blank=True)
-    internal_feedback = models.TextField(blank=True)
-    internal_marked_paper = models.FileField(upload_to='marked_papers/internal/%Y/%m/%d/', null=True, blank=True)  # NEW FIELD
-
-    # External Moderator grading
-    external_marks = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
-    external_total_marks = models.DecimalField(max_digits=5, decimal_places=2, default=100.00)
-    external_graded_by = models.ForeignKey(
-        CustomUser,
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="external_graded_submissions"
-    )
-    external_graded_at = models.DateTimeField(null=True, blank=True)
-    external_feedback = models.TextField(blank=True)
-    external_marked_paper = models.FileField(upload_to='marked_papers/external/%Y/%m/%d/', null=True, blank=True)  # NEW FIELD
-
-    class Meta:
-        ordering = ['-submitted_at']
-
-    def __str__(self):
-        return f"{self.student_number} - {self.paper.name if self.paper else 'No Paper'} - Attempt {self.attempt_number}"
-
-    def save(self, *args, **kwargs):
-        # Auto-set is_offline and student details
-        if self.offline_student:
-            self.is_offline = True
-            self.student_number = self.offline_student.student_number
-            self.student_name = f"{self.offline_student.first_name} {self.offline_student.last_name}"
-        elif self.student:
-            self.student_number = self.student.student_number
-            self.student_name = f"{self.student.first_name} {self.student.last_name}"
-        super().save(*args, **kwargs)
-
-    @property
-    def status(self):
-        """Return submission status based on grading progress"""
-        if self.external_marks is not None:
-            return "Finalized"
-        elif self.internal_marks is not None:
-            return "Reviewed"
-        elif self.marks is not None:
-            return "Graded by Marker"
-        return "Pending"
-class OfflineStudent(models.Model):
-    STUDENT_STATUS = [
-        ('present', 'Present'),
-        ('absent', 'Absent'),
-    ]
-    
-    student_number = models.CharField(max_length=20, unique=True)
-    first_name = models.CharField(max_length=100)
-    last_name = models.CharField(max_length=100)
-    email = models.EmailField(blank=True)
-    qualification = models.ForeignKey(Qualification, on_delete=models.SET_NULL, null=True, blank=True)
-    status = models.CharField(max_length=10, choices=STUDENT_STATUS, default='present')
-    created_at = models.DateTimeField(auto_now_add=True)
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        null=True,
-        on_delete=models.SET_NULL,
-        related_name="offline_students_created"
-    )
+    created_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
     
     class Meta:
         ordering = ['-created_at']
+        verbose_name = "Paper"
+        verbose_name_plural = "Papers"
     
     def __str__(self):
-        return f"{self.student_number} - {self.first_name} {self.last_name}"  
+        return self.name
     
-# Extractor models integrated from Chieta_Paper_Extractor
-class ExtractorPaper(models.Model):
-    title = models.CharField(max_length=255, blank=True)
-    original_file = models.FileField(upload_to="uploads/")
+    @property
+    def question_count(self):
+        return self.nodes.filter(node_type='question').count()
+
+
+class ExamNode(models.Model):
+    """A node in the paper structure (question, instruction, table, image, etc.)"""
+    NODE_TYPES = [
+        ('question', 'Question'),
+        ('instruction', 'Instruction/Rubric'),
+        ('table', 'Table'),
+        ('image', 'Image/Figure'),
+        ('pagebreak', 'Page Break'),
+        ('case_study', 'Case Study'),
+        ('paragraph', 'Paragraph'),
+    ]
+    
+    id = models.CharField(max_length=40, primary_key=True, editable=False, default=uuid.uuid4)
+    paper = models.ForeignKey(Paper, on_delete=models.CASCADE, related_name='nodes')
+    
+    # Question numbering (1, 1.1, 1.1.1, etc.)
+    number = models.CharField(max_length=50, blank=True, default="", db_index=True)
+    
+    node_type = models.CharField(max_length=20, choices=NODE_TYPES, default='paragraph')
+    marks = models.CharField(max_length=20, blank=True, default="")  # Can be "10" or range like "10-12"
+    
+    # Text content
+    text = models.TextField(blank=True, default="", help_text="Plain text preview/summary")
+    
+    # Full content structure (paragraphs, tables, images, etc.)
+    content = models.JSONField(default=list, blank=True)
+    
+    # Parent-child relationship (1.1 has parent 1)
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='children'
+    )
+    
+    # Order in paper
+    order_index = models.IntegerField(default=0, db_index=True)
+    
+    # Extraction metadata
+    manifest_output_dir = models.CharField(max_length=500, blank=True, help_text="Path to extracted media")
+    
     created_at = models.DateTimeField(auto_now_add=True)
-    # Per-paper system prompt for AI classification/grouping
-    system_prompt = models.TextField(blank=True, default="")
-    # Optional identifiers for tracking and reconstruction
-    module_name = models.CharField(max_length=255, blank=True, default="")
-    paper_number = models.CharField(max_length=50, blank=True, default="")
-    paper_letter = models.CharField(max_length=10, blank=True, default="")
+    
+    class Meta:
+        ordering = ['paper', 'order_index']
+        verbose_name = "Exam Node"
+        verbose_name_plural = "Exam Nodes"
+    
+    def __str__(self):
+        return f"Q{self.number or '?'}" if self.node_type == 'question' else f"{self.node_type}"
+
+    @property
+    def marks_int(self):
+        """Parse marks as integer"""
+        if not self.marks:
+            return 0
+        try:
+            return int(self.marks.split('-')[0])  # Take first number from range
+        except:
+            return 0
+
+    def save(self, *args, **kwargs):
+        if self.number is None:
+            self.number = ""
+        if self.marks is None:
+            self.marks = ""
+        super().save(*args, **kwargs)
+
+
+class PaperMemo(models.Model):
+    """Stores memo/answer key for entire paper"""
+    id = models.CharField(max_length=40, primary_key=True, editable=False, default=uuid.uuid4)
+    paper = models.OneToOneField(Paper, on_delete=models.CASCADE, related_name='memo')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(CustomUser, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        verbose_name = "Paper Memo"
+        verbose_name_plural = "Paper Memos"
+    
+    def __str__(self):
+        return f"Memo for {self.paper.name}"
+
+
+class QuestionMemo(models.Model):
+    """Stores memo/answer for individual question"""
+    id = models.CharField(max_length=40, primary_key=True, editable=False, default=uuid.uuid4)
+    paper_memo = models.ForeignKey(PaperMemo, on_delete=models.CASCADE, related_name='questions')
+    exam_node = models.OneToOneField(ExamNode, on_delete=models.CASCADE, related_name='memo')
+    question_number = models.CharField(max_length=50, db_index=True)
+    content = models.TextField(help_text="Memo/answer content")
+    notes = models.TextField(blank=True, help_text="Additional notes/warnings")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Question Memo"
+        ordering = ['question_number']
+    
+    def __str__(self):
+        return f"Memo Q{self.question_number}"
+
+
+# *****************************************
+# Extraction tooling + submissions
+# *****************************************
+class RegexPattern(models.Model):
+    """Stores regex patterns that successfully parsed past papers."""
+    pattern = models.TextField()
+    description = models.TextField(blank=True)
+    match_score = models.FloatField(default=0)
+    format_signature = models.CharField(max_length=100, blank=True)
+    example_usage = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-match_score', '-created_at']
 
     def __str__(self):
-        return f"{self.title or 'Untitled Paper'} ({self.module_name or 'No Module'})"
+        label = self.format_signature or "Regex Pattern"
+        score = f"{self.match_score:.0%}" if self.match_score else "0%"
+        return f"{label} ({score})"
+
+
+class ExtractorPaper(models.Model):
+    """Uploaded document that drives the advanced extractor workflow."""
+    title = models.CharField(max_length=255, blank=True)
+    original_file = models.FileField(upload_to='uploads/')
+    created_at = models.DateTimeField(auto_now_add=True)
+    system_prompt = models.TextField(blank=True, default='')
+    module_name = models.CharField(max_length=255, blank=True, default='')
+    paper_number = models.CharField(max_length=50, blank=True, default='')
+    paper_letter = models.CharField(max_length=10, blank=True, default='')
+
+    def __str__(self):
+        return self.title or f"Extractor Paper {self.id}"
 
 
 class ExtractorBlock(models.Model):
-    PAPER_BLOCK_TYPES = [
-        ("paragraph", "Paragraph"),
-        ("table", "Table"),
-        ("image", "Image"),
-        ("heading", "Heading"),
-        ("instruction", "Instruction"),
-        ("rubric", "Rubric"),
+    """Low-level paragraph/table/image blocks captured from DOCX parsing."""
+    BLOCK_TYPES = [
+        ('paragraph', 'Paragraph'),
+        ('table', 'Table'),
+        ('image', 'Image'),
+        ('heading', 'Heading'),
+        ('instruction', 'Instruction'),
+        ('rubric', 'Rubric'),
     ]
-    paper = models.ForeignKey(ExtractorPaper, on_delete=models.CASCADE, related_name="blocks")
-    order_index = models.IntegerField()
-    block_type = models.CharField(max_length=20, choices=PAPER_BLOCK_TYPES)
-    # Raw XML for audit/debug, plus a normalized text for rendering/search
+
+    paper = models.ForeignKey(ExtractorPaper, related_name='blocks', on_delete=models.CASCADE)
+    order_index = models.IntegerField(default=0)
+    block_type = models.CharField(max_length=20, choices=BLOCK_TYPES)
     xml = models.TextField(blank=True)
     text = models.TextField(blank=True)
-    # Optional: absolute positioning (if you compute it later)
     x = models.FloatField(null=True, blank=True)
     y = models.FloatField(null=True, blank=True)
     w = models.FloatField(null=True, blank=True)
     h = models.FloatField(null=True, blank=True)
-    # Auto-detected question segmentation
     is_qheader = models.BooleanField(default=False)
     detected_qnum = models.CharField(max_length=50, blank=True)
     detected_marks = models.CharField(max_length=50, blank=True)
-    # Optional randomized ordering (per-paper variant)
     rand_order_index = models.IntegerField(null=True, blank=True)
 
     class Meta:
         ordering = ['order_index']
 
+    def __str__(self):
+        label = self.get_block_type_display()
+        return f"{label} #{self.order_index} ({self.paper_id})"
+
 
 class ExtractorBlockImage(models.Model):
-    block = models.ForeignKey(ExtractorBlock, on_delete=models.CASCADE, related_name="images")
-    image = models.ImageField(upload_to="paper_images/")
+    """Images extracted from DOCX tables/paragraphs."""
+    block = models.ForeignKey(ExtractorBlock, related_name='images', on_delete=models.CASCADE)
+    image = models.ImageField(upload_to='paper_images/')
+
+    def __str__(self):
+        return f"Image for block {self.block_id}"
+
+
+class ExtractorTestPaper(models.Model):
+    """Randomized paper that was generated from extractor content."""
+    title = models.CharField(max_length=255, blank=True, default='')
+    module_name = models.CharField(max_length=255, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title or f"Randomized Test {self.id}"
+
+
+class ExtractorTestItem(models.Model):
+    """Individual question entry on a randomized test paper."""
+    test = models.ForeignKey(ExtractorTestPaper, related_name='items', on_delete=models.CASCADE)
+    order_index = models.IntegerField(default=0)
+    question_number = models.CharField(max_length=50, blank=True)
+    marks = models.CharField(max_length=50, blank=True)
+    qtype = models.CharField(max_length=50, blank=True)
+    content_type = models.CharField(max_length=50, blank=True)
+    content = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['order_index']
+
+    def __str__(self):
+        return f"{self.question_number or 'Q'} on {self.test_id}"
 
 
 class ExtractorUserBox(models.Model):
-    """Stores user-drawn boxes & metadata over the rendered page."""
-    paper = models.ForeignKey(ExtractorPaper, on_delete=models.CASCADE, related_name="user_boxes")
-    # bounding box in container coordinates (CSS pixels) for simplicity
+    """User-curated bounding boxes used for question banking."""
+    paper = models.ForeignKey(ExtractorPaper, related_name='user_boxes', on_delete=models.CASCADE)
     x = models.FloatField()
     y = models.FloatField()
     w = models.FloatField()
     h = models.FloatField()
-    # Save order for reconstruction
     order_index = models.IntegerField(default=0)
     question_number = models.CharField(max_length=50, blank=True)
     marks = models.CharField(max_length=50, blank=True)
@@ -776,47 +757,199 @@ class ExtractorUserBox(models.Model):
     header_label = models.CharField(max_length=255, blank=True)
     case_study_label = models.CharField(max_length=255, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    # Captured content from selection (JSON string)
     content_type = models.CharField(max_length=50, blank=True)
     content = models.TextField(blank=True)
 
-    def display_qtype(self):
-        mapping = {
-            "question": "Question",
-            "question_part": "Question Part",
-            "question_header": "Question Header",
-            "case_study": "Case Study",
-            "rubric": "Rubric",
-            "instruction": "Instruction",
-            "cover_page": "Cover Page",
-            "heading": "Heading",
-        }
-        return mapping.get(self.qtype, self.qtype or "(type)")
-
     class Meta:
         ordering = ['order_index']
 
+    def __str__(self):
+        return f"{self.question_number or 'Box'} on paper {self.paper_id}"
 
-class ExtractorTestPaper(models.Model):
-    """Stores a randomized test assembled from the bank of boxes."""
-    title = models.CharField(max_length=255, blank=True, default="")
-    module_name = models.CharField(max_length=255, blank=True, default="")
+
+class OfflineStudent(models.Model):
+    """Learners captured by assessment centres when offline."""
+    STATUS_PRESENT = 'present'
+    STATUS_ABSENT = 'absent'
+    STATUS_CHOICES = [
+        (STATUS_PRESENT, 'Present'),
+        (STATUS_ABSENT, 'Absent'),
+    ]
+
+    student_number = models.CharField(max_length=20, unique=True)
+    first_name = models.CharField(max_length=100)
+    last_name = models.CharField(max_length=100)
+    email = models.EmailField(blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PRESENT)
+    qualification = models.ForeignKey(Qualification, on_delete=models.SET_NULL, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='offline_students_created'
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.student_number} - {self.first_name} {self.last_name}"
+
+
+class PaperBankEntry(models.Model):
+    """Original assessment uploads that feed the administrator paper bank."""
+    assessment = models.OneToOneField(
+        Assessment,
+        related_name='paper_bank_entry',
+        on_delete=models.CASCADE
+    )
+    original_file = models.FileField(upload_to='paper_bank/')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"{self.title or 'Untitled Test'} ({self.module_name or 'No Module'})"
+        return f"Paper bank entry for {self.assessment.eisa_id}"
 
 
-class ExtractorTestItem(models.Model):
-    test = models.ForeignKey(ExtractorTestPaper, on_delete=models.CASCADE, related_name="items")
-    order_index = models.IntegerField(default=0)
-    question_number = models.CharField(max_length=50, blank=True)
-    marks = models.CharField(max_length=50, blank=True)
-    qtype = models.CharField(max_length=50, blank=True)
-    content_type = models.CharField(max_length=50, blank=True)
-    content = models.TextField(blank=True)  # JSON string copied from UserBox
+class Feedback(models.Model):
+    """Simple feedback trail tied to an assessment workflow."""
+    STATUS_PENDING = 'Pending'
+    STATUS_REVISED = 'Revised'
+    STATUS_COMPLETED = 'Completed'
+    STATUS_CHOICES = [
+        (STATUS_PENDING, 'Pending'),
+        (STATUS_REVISED, 'Revised'),
+        (STATUS_COMPLETED, 'Completed'),
+    ]
+
+    assessment = models.ForeignKey(
+        Assessment,
+        related_name='feedbacks',
+        on_delete=models.CASCADE
+    )
+    to_user = models.CharField(max_length=100)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
+
+    def __str__(self):
+        return f"Feedback for {self.assessment.eisa_id} -> {self.to_user}"
+
+
+class ExamSubmission(models.Model):
+    """Stores PDF uploads and grading metadata for both online/offline learners."""
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE
+    )
+    offline_student = models.ForeignKey(
+        OfflineStudent,
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE
+    )
+    assessment = models.ForeignKey(
+        Assessment,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL
+    )
+    paper = models.ForeignKey(
+        Paper,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL
+    )
+    student_number = models.CharField(max_length=50)
+    student_name = models.CharField(max_length=100)
+    attempt_number = models.IntegerField()
+    pdf_file = models.FileField(upload_to='exam_submissions/%Y/%m/%d/')
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    is_offline = models.BooleanField(default=False)
+
+    marks = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    total_marks = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('100.00'))
+    graded_at = models.DateTimeField(null=True, blank=True)
+    feedback = models.TextField(blank=True)
+    marked_paper = models.FileField(
+        upload_to='marked_papers/marker/%Y/%m/%d/',
+        null=True,
+        blank=True
+    )
+    graded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name='graded_submissions',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL
+    )
+
+    internal_marks = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    internal_total_marks = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('100.00'))
+    internal_graded_at = models.DateTimeField(null=True, blank=True)
+    internal_feedback = models.TextField(blank=True)
+    internal_marked_paper = models.FileField(
+        upload_to='marked_papers/internal/%Y/%m/%d/',
+        null=True,
+        blank=True
+    )
+    internal_graded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name='internal_graded_submissions',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL
+    )
+
+    external_marks = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    external_total_marks = models.DecimalField(max_digits=5, decimal_places=2, default=Decimal('100.00'))
+    external_graded_at = models.DateTimeField(null=True, blank=True)
+    external_feedback = models.TextField(blank=True)
+    external_marked_paper = models.FileField(
+        upload_to='marked_papers/external/%Y/%m/%d/',
+        null=True,
+        blank=True
+    )
+    external_graded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name='external_graded_submissions',
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL
+    )
 
     class Meta:
-        ordering = ['order_index']
+        ordering = ['-submitted_at']
+
+    def __str__(self):
+        return f"{self.student_number} - Attempt {self.attempt_number}"
+
+    def save(self, *args, **kwargs):
+        """Ensure student details are always populated from related records."""
+        if self.offline_student:
+            self.student_number = self.offline_student.student_number
+            full_name = f"{self.offline_student.first_name} {self.offline_student.last_name}".strip()
+            self.student_name = full_name or self.offline_student.student_number
+        elif self.student:
+            self.student_number = self.student_number or getattr(self.student, "student_number", "") or self.student.email
+            full_name = f"{self.student.first_name} {self.student.last_name}".strip()
+            self.student_name = self.student_name or full_name or self.student.email
+        super().save(*args, **kwargs)
+
+    @property
+    def status(self):
+        if self.external_marks is not None:
+            return "Finalized"
+        if self.internal_marks is not None:
+            return "Reviewed"
+        if self.marks is not None:
+            return "Graded by Marker"
+        return "Pending"
+
+    @property
+    def student_display(self):
+        return self.student_name or self.student_number
 
 

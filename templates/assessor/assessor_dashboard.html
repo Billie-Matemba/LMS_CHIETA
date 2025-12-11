@@ -1,0 +1,51 @@
+<!-- ...existing content... -->
+
+<!-- Add this section with developer tools -->
+
+<div class="row mt-5">
+    <div class="col-md-12">
+        <h3 class="mb-4">
+            <i class="fas fa-tools"></i> Developer Tools
+        </h3>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card border-warning h-100">
+            <div class="card-header bg-warning text-dark">
+                <i class="fas fa-random"></i> Memo Randomisation
+            </div>
+            <div class="card-body">
+                <p class="card-text">
+                    Randomise exam questions while maintaining associated memos and answer keys.
+                </p>
+                <form method="GET" action="{% url 'assessor_developer_memo_randomisation' paper.id qualification.id %}"
+                    class="mb-3">
+                    <div class="row g-2">
+                        <div class="col-md-8">
+                            <select name="paper_id" class="form-select form-select-sm" required>
+                                <option value="">Select a paper...</option>
+                                {% for p in available_papers %}
+                                <option value="{{ p.id }}">{{ p.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-sm btn-warning w-100">
+                                <i class="fas fa-play"></i> Open
+                            </button>
+                        </div>
+                    </div>
+                </form>
+                <small class="text-muted">
+                    <i class="fas fa-info-circle"></i> Add memos to questions and randomise from question bank.
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- ...other developer tools... -->
+</div>
+
+<!-- ...rest of dashboard... -->

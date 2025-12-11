@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Randomised Papers — Assessor Developer{% endblock %}
+
+{% block extra_css %}
+<style>
+    .randomised-header {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        padding: 2rem;
+        border-radius: 0.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .randomised-header h1 {
+        margin: 0;
+    }
+
+    .paper-card {
+        transition: all 0.2s;
+        border-left: 4px solid #f5576c;
+    }
+
+    .paper-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .memo-status {
+        font-size: 0.85rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+    }
+
+    .memo-status.has-memo {
+        background: #d4edda;
+        color: #155724;
+    }
+
+    .memo-status.no-memo {
+        background: #f8d7da;
+        color: #721c24;
+    }
+
+    .paper-meta {
+        display: flex;
+        gap: 1rem;
+        flex-wrap: wrap;
+        margin-top: 0.5rem;
+    }
+
+    .meta-badge {
+        font-size: 0.75rem;
+        background: #f8f9fa;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+
+    <!-- Header -->
+    <div class="randomised-header">
+        <div class="d-flex justify-content-between align-items-start">
+            <div>
+                <h1><i class="fas fa-dice"></i> Randomised Papers</h1>
+                <p class="text-white-50 mb-0">Manage memos for randomised exam papers</p>
+            </div>
+            <a href="{% url 'assessor_developer' %}" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-arrow-left"></i> Back to Developer
+            </a>
+        </div>
+    </div>
+
+    {% if total_count > 0 %}
+
+    <!-- Stats -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card border-info">
+                <div class="card-body d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="mb-0">
+                            <i class="fas fa-chart-bar"></i>
+                            <span class="badge bg-primary">{{ total_count }}</span>
+                            Randomised Papers
+                        </h4>
+                    </div>
+                    <small class="text-muted">
+                        Showing papers generated from randomisation process
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Papers List -->
+    <div class="row">
+        {% for paper in papers %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card paper-card h-100">
+                <div class="card-header bg-light d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="card-title mb-2">{{ paper.name|truncatewords:6 }}</h5>
+                        {% if paper.memo %}
+                        <span class="memo-status has-memo">
+                            <i class="fas fa-check-circle"></i> Memo Added
+                        </span>
+                        {% else %}
+                        <span class="memo-status no-memo">
+                            <i class="fas fa-plus-circle"></i> No Memo
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <!-- Paper Info -->
+                    <div class="paper-meta">
+                        <span class="meta-badge">
+                            <i class="fas fa-file-pdf"></i>
+                            <strong>{{ paper.nodes.count }}</strong> nodes
+                        </span>
+                        <span class="meta-badge">
+                            <i class="fas fa-pen"></i>
+                            <strong>{{ paper.nodes.filter_by_type__question|length }}</strong> questions
+                        </span>
+                        <span class="meta-badge">
+                            <i class="fas fa-calculator"></i>
+                            <strong>{{ paper.total_marks }}</strong> marks
+                        </span>
+                    </div>
+
+                    <!-- Parent Paper Info -->
+                    {% if paper.parent_paper %}
+                    <div class="mt-3 p-2 bg-light rounded small">
+                        <i class="fas fa-link"></i>
+                        <strong>Source:</strong> {{ paper.parent_paper.name|truncatewords:4 }}
+                    </div>
+                    {% endif %}
+
+                    <!-- Created Info -->
+                    <div class="mt-3 text-muted small">
+                        <i class="fas fa-clock"></i>
+                        Created {{ paper.created_at|date:"M d, Y H:i" }}
+                    </div>
+                </div>
+
+                <div class="card-footer bg-light">
+                    <div class="btn-group w-100" role="group">
+                        <a href="{% url 'randomised_paper_memo_crud' paper.id %}" class="btn btn-sm btn-info">
+                            <i class="fas fa-edit"></i> Edit Memo
+                        </a>
+                        <button type="button" class="btn btn-sm btn-danger delete-paper-btn"
+                            data-paper-id="{{ paper.id }}" data-paper-name="{{ paper.name }}">
+                            <i class="fas fa-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% else %}
+
+    <!-- Empty State -->
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card border-warning text-center py-5">
+                <div class="card-body">
+                    <i class="fas fa-inbox" style="font-size: 3rem; color: #999; margin-bottom: 1rem;"></i>
+                    <h4>No Randomised Papers Yet</h4>
+                    <p class="text-muted mb-3">
+                        Randomised papers will appear here after you generate them from the Memo Randomisation tool.
+                    </p>
+                    <a href="{% url 'assessor_developer' %}" class="btn btn-primary">
+                        <i class="fas fa-arrow-right"></i> Go to Randomisation Tool
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
+
+</div>
+
+<script>
+    document.querySelectorAll('.delete-paper-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const paperId = this.dataset.paperId;
+            const paperName = this.dataset.paperName;
+
+            if (confirm(`Delete randomised paper "${paperName}"?\n\nThis cannot be undone.`)) {
+                window.location.href = `{% url 'delete_randomised_paper' 'PAPER_ID' %}`.replace('PAPER_ID', paperId);
+            }
+        });
+    });
+</script>
+
+{% endblock %}

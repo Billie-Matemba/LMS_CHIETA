@@ -55,8 +55,9 @@ try:
     django.setup()
     
     # Now safe to import Django models
-    from core.models import Paper, ExamNode
+    from core.models import Paper, ExamNode, CustomUser
     from django.db import transaction
+      # or wherever your CustomUser is defined
     DJANGO_AVAILABLE = True
 except Exception:
     DJANGO_AVAILABLE = False
@@ -1443,7 +1444,7 @@ def save_robust_extraction_to_db(docx_file, paper_name, qualification, user, use
         docx_file: Django uploaded file object
         paper_name: Name for the paper
         qualification: Qualification model instance
-        user: User who uploaded
+        user: CustomUser instance who uploaded (or None)
         use_gemini: Whether to use Gemini API
         use_gemma: Whether to use local Gemma
     
@@ -1453,10 +1454,10 @@ def save_robust_extraction_to_db(docx_file, paper_name, qualification, user, use
     print("🚀 Starting robust extraction to database...")
     
     try:
-        # Save uploaded file temporarily
         import tempfile
         import os
         import shutil
+        import uuid
         from django.conf import settings
         
         with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp:
@@ -1476,16 +1477,15 @@ def save_robust_extraction_to_db(docx_file, paper_name, qualification, user, use
         print("📄 Extracting document structure...")
         manifest = extract_docx(
             temp_path, 
-            out_dir=extract_dir,  # Use our defined directory
+            out_dir=extract_dir,
             use_gemini=use_gemini, 
-            use_gemma=use_gemma,
-            media_dir=media_dir
+            use_gemma=use_gemma
         )
 
-        # Copy images to media folder - FIXED: pass the correct parameter
+        # Copy images to media folder
         if os.path.exists(media_dir) and os.listdir(media_dir):
             print(f"📁 Copying images from {media_dir} to media folder")
-            copy_images_to_media_folder(media_dir)  # This passes extract_media_dir to the function
+            copy_images_to_media_folder(media_dir)
         else:
             print("ℹ️ No images found to copy")
         
@@ -1500,7 +1500,7 @@ def save_robust_extraction_to_db(docx_file, paper_name, qualification, user, use
         
         # Save to database
         with transaction.atomic():
-            # Create Paper
+            # Create Paper with CustomUser reference
             paper = Paper.objects.create(
                 name=paper_name,
                 qualification=qualification,
@@ -1509,14 +1509,14 @@ def save_robust_extraction_to_db(docx_file, paper_name, qualification, user, use
                     for node in manifest['nodes'] 
                     if node.get('type') == 'question'
                 ),
-                structure_json=manifest  # Store full manifest as JSON
+                structure_json=manifest,
+                created_by=user  # CustomUser instance
             )
             
             # Create ExamNodes
-            node_map = {}  # Track for parent-child relationships
+            node_map = {}
             
             for order, node_data in enumerate(manifest['nodes']):
-                # Create ExamNode
                 exam_node = ExamNode.objects.create(
                     id=uuid.uuid4().hex,
                     paper=paper,
@@ -1530,7 +1530,6 @@ def save_robust_extraction_to_db(docx_file, paper_name, qualification, user, use
                     order_index=order
                 )
                 
-                # Store in map for parent relationships
                 if exam_node.number:
                     node_map[exam_node.number] = exam_node
                     
