@@ -607,7 +607,7 @@
                                     <td>{{ centre.qualification_assigned.name }}</td>
                                     <td>
                                         <a href="{% url 'edit_assessment_centre' centre.id %}" class="btn btn-sm btn-secondary">Edit</a>
-                                        <a href="{% url 'delete_assessment_centre' centre.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this centre?')">Remove</a>
+                                        <!-- <a href="{% url 'delete_assessment_centre' centre.id %}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to delete this centre?')">Remove</a> -->
                                     </td>
                                 </tr>
                                 {% empty %}

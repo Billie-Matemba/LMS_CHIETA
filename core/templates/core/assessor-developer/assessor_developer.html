@@ -1308,50 +1308,95 @@
             }
         };
 
-        const populateModuleSelect = () => {
-            if (!moduleSelect) return;
+const populateModuleSelect = () => {
+    if (!moduleSelect) return;
+    
+    // Get user's qualification
+    const userQualification = document.body.getAttribute('data-user-qualification') || 
+                             document.querySelector('.welcome-box .date strong')?.textContent?.trim() || 
+                             '';
+    
+    const modules = rawModules.map(mod => mod.name || 'Unknown Module').sort((a, b) => a.localeCompare(b));
+    const unique = Array.from(new Set(modules));
+    
+    moduleSelect.innerHTML = '';
+    
+    if (unique.length > 0) {
+        let selectedModule = unique[0]; // Default
+        
+        // Only try to match if we have a qualification
+        if (userQualification && userQualification !== "Not Assigned") {
+            // Clean qualification name (remove extra text)
+            const cleanQualification = userQualification.replace(/Qualification[:]?\s*/i, '').trim();
             
-            // Get unique module names from the filtered data (should only be user's qualification modules)
-            const modules = rawModules.map(mod => mod.name || 'Unknown Module').sort((a, b) => a.localeCompare(b));
-            const unique = Array.from(new Set(modules));
+            // Try exact match first
+            const exactMatch = unique.find(name => 
+                name.toLowerCase() === cleanQualification.toLowerCase()
+            );
             
-            moduleSelect.innerHTML = '';
-            
-            // If there are modules available, auto-select the first one and disable dropdown
-            if (unique.length > 0) {
-                unique.forEach(name => {
-                    const opt = document.createElement('option');
-                    opt.value = name;
-                    opt.textContent = name;
-                    moduleSelect.appendChild(opt);
-                });
-                
-                // Auto-select the first module
-                moduleSelect.value = unique[0];
-                
-                // Disable the dropdown since it's auto-selected
-                moduleSelect.disabled = true;
-                moduleSelect.style.backgroundColor = '#f8f9fa';
-                moduleSelect.style.cursor = 'not-allowed';
-                
-                // Update the tiles to show data for the auto-selected module
-                const filtered = getFilteredTiles();
-                renderTiles(filtered);
-                
-                // Update status to show it's auto-selected
-                setStatus(`Auto-selected module: ${unique[0]}`, 'info');
-                
+            if (exactMatch) {
+                selectedModule = exactMatch;
             } else {
-                // No modules found for this qualification
-                const noModulesOption = document.createElement('option');
-                noModulesOption.value = '';
-                noModulesOption.textContent = 'No modules found';
-                noModulesOption.disabled = true;
-                noModulesOption.selected = true;
-                moduleSelect.appendChild(noModulesOption);
-                moduleSelect.disabled = true;
+                // Try partial match
+                const partialMatch = unique.find(name => 
+                    name.toLowerCase().includes(cleanQualification.toLowerCase()) ||
+                    cleanQualification.toLowerCase().includes(name.toLowerCase())
+                );
+                
+                if (partialMatch) {
+                    selectedModule = partialMatch;
+                } else {
+                    // Try word-based matching
+                    const qualificationWords = cleanQualification.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+                    for (const moduleName of unique) {
+                        const moduleLower = moduleName.toLowerCase();
+                        if (qualificationWords.some(word => moduleLower.includes(word))) {
+                            selectedModule = moduleName;
+                            break;
+                        }
+                    }
+                }
             }
-        };
+        }
+        
+        // Create options
+        unique.forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name;
+            opt.selected = (name === selectedModule);
+            moduleSelect.appendChild(opt);
+        });
+        
+        // Set the selected value
+        moduleSelect.value = selectedModule;
+        
+        // If qualification was used to select, disable the dropdown
+        if (userQualification && userQualification !== "Not Assigned") {
+            moduleSelect.disabled = true;
+            moduleSelect.style.backgroundColor = '#f8f9fa';
+            moduleSelect.style.cursor = 'not-allowed';
+            setStatus(`Showing pool for your qualification: ${selectedModule}`, 'info');
+        } else {
+            setStatus(`Selected: ${selectedModule} (No specific qualification found)`, 'info');
+        }
+        
+        // Render tiles for the selected module
+        const filtered = getFilteredTiles();
+        renderTiles(filtered);
+        
+    } else {
+        // No modules
+        const noModulesOption = document.createElement('option');
+        noModulesOption.value = '';
+        noModulesOption.textContent = 'No modules found';
+        noModulesOption.disabled = true;
+        noModulesOption.selected = true;
+        moduleSelect.appendChild(noModulesOption);
+        moduleSelect.disabled = true;
+        setStatus('No pool data available. Please upload assessments first.', 'warning');
+    }
+};
 
         const populateLetterSelect = () => {
             if (!letterSelect) return;
