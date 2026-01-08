@@ -3,11 +3,15 @@ from django.contrib.auth.models import AbstractUser, UserManager
 from django.utils.timezone import now
 from django.core.exceptions import ValidationError
 from django.conf import settings
+import logging
 import random
 from django.utils.html import mark_safe
 import base64 
 import uuid
 from decimal import Decimal
+
+
+logger = logging.getLogger(__name__)
 
 #************************
 # Qualification creation
@@ -306,8 +310,35 @@ class Assessment(models.Model):
 
     def save(self, *args, **kwargs):
         self.clean()
+        is_create = self._state.adding
+        previous_status = None
+        status_changed = False
+
+        if not is_create and self.pk:
+            previous_status = (
+                Assessment.objects.filter(pk=self.pk).values_list('status', flat=True).first()
+            )
+            if previous_status is not None and previous_status != self.status:
+                status_changed = True
+
         # Remove the PDF renaming logic - let files keep their original names
         super().save(*args, **kwargs)
+
+        if not is_create and status_changed:
+            try:
+                from core import automated_notifications
+
+                automated_notifications.send_personalized_status_notifications(
+                    status=self.status,
+                    assessment_id=self.id,
+                    qualification=self.qualification.name if self.qualification else None,
+                )
+            except Exception as exc:
+                logger.warning(
+                    "Failed to dispatch workflow notification for assessment %s: %s",
+                    self.id,
+                    exc,
+                )
 
     # — new M2M through-model fields —
     questions = models.ManyToManyField(
@@ -836,6 +867,25 @@ class Feedback(models.Model):
         return f"Feedback for {self.assessment.eisa_id} -> {self.to_user}"
 
 
+class GlobalBusinessRecord(models.Model):
+    """Custom dataset rows uploaded for the Global Business dashboard."""
+
+    school = models.CharField(max_length=255)
+    country = models.CharField(max_length=100, blank=True)
+    continent = models.CharField(max_length=100, blank=True)
+    learners = models.PositiveIntegerField(default=0)
+    submissions = models.PositiveIntegerField(default=0)
+    pass_rate = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    average_score = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['school']
+
+    def __str__(self):
+        return self.school
+
+
 class ExamSubmission(models.Model):
     """Stores PDF uploads and grading metadata for both online/offline learners."""
     student = models.ForeignKey(
@@ -951,5 +1001,3 @@ class ExamSubmission(models.Model):
     @property
     def student_display(self):
         return self.student_name or self.student_number
-
-

@@ -13,6 +13,8 @@ urlpatterns = [
     # Admin URLs
     path('administrator/', views.admin_dashboard, name='admin_dashboard'),
     path('administrator/dashboards/', admin_pages.administrator_analytics_dashboard, name='administrator_dashboards'),
+    path('administrator/global-business-dashboard/', admin_pages.administrator_global_business_dashboard, name='global_business_dashboard'),
+    path('global-business-dashboard/', admin_pages.global_business_upload_dashboard, name='global_business_upload'),
     path('administrator/paper-bank/', admin_pages.administrator_paperbank, name='administrator_paperbank'),
     path('administrator/user-management/', views.user_management, name='user_management'),
     path('administrator/qualifications/', views.qualification_management_view, name='manage_qualifications'),
@@ -58,6 +60,7 @@ urlpatterns = [
     path('assessor-developer/paper/<int:paper_id>/boxes/<int:box_id>/delete/', extractor_views.delete_box, name='exam_delete_box'),
     path('assessor-developer/paper/<int:paper_id>/boxes/<int:box_id>/json/', extractor_views.get_box, name='exam_get_box'),
     path('assessor-developer/paper/<int:paper_id>/ai/draw_blocks/', extractor_views.ai_draw_blocks, name='exam_ai_draw_blocks'),
+    path('assessor-developer/paper/<int:paper_id>/ai/gadzira/', extractor_views.gadzira_draw_blocks, name='exam_gadzira_draw_blocks'),
     path('assessor-developer/paper/<int:paper_id>/images/convert_emf/', extractor_views.convert_emf, name='exam_convert_emf'),
     path('assessor-developer/paper/<int:paper_id>/bank/info/', extractor_views.bank_info, name='exam_bank_info'),
     path('assessor-developer/paper/<int:paper_id>/bank/preview/', extractor_views.bank_preview, name='exam_bank_preview'),
@@ -179,6 +182,11 @@ urlpatterns = [
         "paper/<int:paper_id>/ai/draw_blocks/",
         extractor_views.ai_draw_blocks,
         name="exam_ai_draw_blocks",
+    ),
+    path(
+        "paper/<int:paper_id>/ai/gadzira/",
+        extractor_views.gadzira_draw_blocks,
+        name="exam_gadzira_draw_blocks",
     ),
     path(
         "paper/<int:paper_id>/boxes/<int:box_id>/delete/",

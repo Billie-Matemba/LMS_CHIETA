@@ -12,7 +12,9 @@
       </div>
     </div>
     <div class="d-flex gap-2">
-      <button type="button" class="btn btn-outline-primary" id="test-preview-toggle" data-mode="off">Test Preview</button>
+      <button type="button" class="btn btn-outline-primary" id="test-preview-toggle" data-mode="off">Test
+        Preview</button>
+      <button type="button" class="btn btn-outline-success" id="actual-numbering-btn">Actual Numbering</button>
       <a class="btn btn-outline-secondary" href="?editor=1">Open Editor</a>
     </div>
   </div>
@@ -20,11 +22,11 @@
   <div class="card mb-4">
     <div class="card-body" id="paper-preview">
       {% if node_sequence %}
-        {% for node in node_sequence %}
-          {% include 'core/administrator/_readonly_node.html' with node=node %}
-        {% endfor %}
+      {% for node in node_sequence %}
+      {% include 'core/administrator/_readonly_node.html' with node=node %}
+      {% endfor %}
       {% else %}
-        <p class="text-muted">No structured nodes available to preview.</p>
+      <p class="text-muted">No structured nodes available to preview.</p>
       {% endif %}
     </div>
   </div>
@@ -33,22 +35,44 @@
 
 {% block extra_js %}
 <style>
+  /* Force button visibility */
+  #actual-numbering-btn {
+    display: inline-block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    width: auto !important;
+    height: auto !important;
+    padding: 0.375rem 0.75rem !important;
+    margin: 0 !important;
+  }
+
+  /* Make button container flex properly */
+  .d-flex.gap-2 {
+    display: flex !important;
+    gap: 0.5rem !important;
+    flex-wrap: wrap !important;
+  }
+
   #paper-preview.test-mode {
     background-color: #f4f8ff;
     padding: 1rem;
     border-radius: 12px;
   }
+
   #paper-preview.test-mode table {
     width: 100%;
   }
+
   #paper-preview.test-mode [contenteditable="true"]:focus {
     outline: 2px solid #0d6efd;
     background-color: #f0f6ff;
   }
+
   #paper-preview.test-mode tbody td {
     min-height: 2.5rem;
     vertical-align: top;
   }
+
   #paper-preview.test-mode .answer-field {
     min-height: 2.5rem;
     border: 1px dashed #6ea8ff;
@@ -158,5 +182,237 @@
       }
     });
   });
+</script>
+<script>
+  const QUESTION_LIKE_TYPES = new Set([
+    "question",
+    "constructed_response",
+    "multiple_choice",
+    "true_false",
+    "matching",
+    "calculation",
+    "short_response",
+    "long_response",
+    "data_interpretation",
+    "procedure_sop",
+    "diagram_labeling"
+  ]);
+
+  function isQuestionLikeType(type) {
+    if (!type) {
+      return false;
+    }
+    const normalized = type.toLowerCase();
+    return normalized === "question" || QUESTION_LIKE_TYPES.has(normalized) || normalized.includes("question");
+  }
+
+  function getBlockText(block) {
+    if (!block) {
+      return "";
+    }
+    const textEl = block.querySelector(".block-text");
+    if (textEl) {
+      const fromInput = "value" in textEl ? textEl.value : textEl.textContent;
+      if (fromInput && fromInput.trim()) {
+        return fromInput.trim();
+      }
+    }
+    const dataText = block.dataset.text;
+    if (dataText && dataText.trim()) {
+      return dataText.trim();
+    }
+    return (block.textContent || "").trim();
+  }
+
+  function getBlockQn(block) {
+    return (block?.dataset?.qn || "").trim();
+  }
+
+  function extractNumberFromText(text) {
+    if (!text) {
+      return null;
+    }
+    const match = text.trim().match(/^(\d+(?:\.\d+)*)\s*[:)\-.\s]/);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+    return null;
+  }
+
+  function normalizeNumbering(num) {
+    if (!num) {
+      return null;
+    }
+    const parts = num.split(".");
+    if (parts.length === 2) {
+      const [major, minor] = parts;
+      if (minor.length >= 2) {
+        const secondPart = minor.slice(0, -1);
+        const thirdPart = minor.slice(-1);
+        if (/^\d+$/.test(secondPart) && /^\d+$/.test(thirdPart)) {
+          return `${major}.${secondPart}.${thirdPart}`;
+        }
+      }
+    }
+    return num;
+  }
+
+  function getParentNumber(num) {
+    if (!num) {
+      return null;
+    }
+    const parts = num.split(".");
+    return parts.length > 1 ? parts.slice(0, -1).join(".") : null;
+  }
+
+  function runActualNumberingAutomation() {
+    console.log("Starting actual numbering automation...");
+
+    const allBlocks = Array.from(document.querySelectorAll(".block"));
+    if (allBlocks.length === 0) {
+      alert("No blocks found to reorganize.");
+      return;
+    }
+
+    const numbersByBlockId = {};
+    const blocksByNumber = {};
+
+    allBlocks.forEach((block, index) => {
+      const blockId = block.dataset.id || block.dataset.qn || `block-${index}`;
+      const blockText = getBlockText(block);
+      let extractedNum = extractNumberFromText(blockText);
+
+      if (!blockId) {
+        return;
+      }
+
+      if (!extractedNum) {
+        numbersByBlockId[blockId] = null;
+        return;
+      }
+
+      const normalized = normalizeNumbering(extractedNum);
+      numbersByBlockId[blockId] = normalized;
+
+      if (!blocksByNumber[normalized]) {
+        blocksByNumber[normalized] = [];
+      }
+      blocksByNumber[normalized].push(block);
+    });
+
+    const parents = {};
+    const childrenCount = {};
+    let nestsCount = 0;
+
+    Object.entries(numbersByBlockId).forEach(([blockId, num]) => {
+      if (!num) {
+        return;
+      }
+
+      const parentNum = getParentNumber(num);
+      if (!parentNum) {
+        return;
+      }
+
+      const parentBlocks = blocksByNumber[parentNum];
+      if (!parentBlocks || parentBlocks.length === 0) {
+        return;
+      }
+
+      const parentBlock = parentBlocks.find((candidate) => isQuestionLikeType(candidate.dataset.type)) || parentBlocks[0];
+      if (!parentBlock || parentBlock.dataset.id === blockId) {
+        return;
+      }
+
+      parents[blockId] = parentBlock.dataset.id;
+      childrenCount[parentBlock.dataset.id] = (childrenCount[parentBlock.dataset.id] || 0) + 1;
+    });
+
+    allBlocks.forEach((block) => {
+      const wrapper = block.querySelector(":scope > .children");
+      if (wrapper) {
+        while (wrapper.firstChild) {
+          document.body.appendChild(wrapper.firstChild);
+        }
+        wrapper.remove();
+      }
+    });
+
+    const blocksAfterCleanup = Array.from(document.querySelectorAll(".block"));
+    blocksAfterCleanup.forEach((block) => {
+      const blockId = block.dataset.id || block.dataset.qn;
+      if (!blockId) {
+        return;
+      }
+
+      const parentBlockId = parents[blockId];
+      if (!parentBlockId) {
+        return;
+      }
+
+      const parentBlock = document.querySelector(`.block[data-id="${parentBlockId}"]`);
+      if (!parentBlock) {
+        return;
+      }
+
+      let wrapper = parentBlock.querySelector(":scope > .children");
+      if (!wrapper) {
+        wrapper = document.createElement("div");
+        wrapper.className = "children ms-4 mt-2";
+        parentBlock.appendChild(wrapper);
+      }
+
+      wrapper.appendChild(block);
+      nestsCount += 1;
+    });
+
+    const blocksNow = Array.from(document.querySelectorAll(".block"));
+    blocksNow.forEach((block) => {
+      block.querySelectorAll(".parent-child-badge").forEach((badge) => badge.remove());
+
+      const blockId = block.dataset.id || block.dataset.qn;
+      if (!blockId) {
+        return;
+      }
+
+      const blockNum = numbersByBlockId[blockId];
+      const container = block;
+      let badgeText = "";
+      let badgeClass = "";
+
+      if (childrenCount[blockId]) {
+        badgeText = `Parent of ${childrenCount[blockId]} (num: ${blockNum || "?"})`;
+        badgeClass = "badge bg-success text-white parent-child-badge ms-2";
+      } else if (parents[blockId]) {
+        const parentNum = numbersByBlockId[parents[blockId]] || "?";
+        badgeText = `Child of ${parentNum} (num: ${blockNum || "?"})`;
+        badgeClass = "badge bg-info text-white parent-child-badge ms-2";
+      } else if (blockNum) {
+        badgeText = `Top-level (num: ${blockNum})`;
+        badgeClass = "badge bg-secondary text-white parent-child-badge ms-2";
+      }
+
+      if (badgeText) {
+        const badge = document.createElement("span");
+        badge.textContent = badgeText;
+        badge.className = badgeClass;
+        container.appendChild(badge);
+      }
+    });
+
+    alert(`Actual numbering automation complete. ${nestsCount} block(s) reorganized based on numbering.`);
+  }
+</script>
+<script>
+  // Add this at the very end of extra_js block
+  setTimeout(() => {
+    const button = document.getElementById("actual-numbering-btn");
+    if (button) {
+      console.log("✓ Button found after delay");
+      button.addEventListener("click", runActualNumberingAutomation);
+    } else {
+      console.error("❌ Button still not found");
+    }
+  }, 500);
 </script>
 {% endblock %}

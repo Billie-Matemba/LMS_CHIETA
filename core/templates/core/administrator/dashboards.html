@@ -201,6 +201,96 @@ button:hover {
     background-color: #8f6620;
 }
 
+.dashboard-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 1.5rem 0;
+    border-bottom: 1px solid rgba(88, 6, 88, 0.2);
+    padding-bottom: 0.5rem;
+}
+
+.dashboard-tab {
+    border: 1px solid rgba(88, 6, 88, 0.2);
+    border-radius: 999px;
+    padding: 0.4rem 1.2rem;
+    background: rgba(255, 255, 255, 0.8);
+    color: #3a063a;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.dashboard-tab.active {
+    background: linear-gradient(135deg, #3a063a, #8f6620);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 8px 16px rgba(58, 6, 58, 0.25);
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.is-active {
+    display: block;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.export-chart-btn {
+    border: none;
+    background: transparent;
+    color: #3a063a;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-weight: 600;
+    padding: 0.25rem 0.5rem;
+}
+
+.export-chart-btn:hover,
+.export-chart-btn:focus {
+    color: #8f6620;
+    text-decoration: none;
+}
+
+.export-chart-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.global-summary .stat-card {
+    min-height: 150px;
+}
+
+.global-summary .stat-value {
+    font-size: 2rem;
+}
+
+.compare-multiselect {
+    min-height: 130px;
+}
+
+.empty-state {
+    border: 1px dashed rgba(58, 6, 58, 0.3);
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-align: center;
+    color: #6c6c6c;
+    background-color: rgba(255, 255, 255, 0.8);
+}
+
+
 .highlight {
     color: red;
     font-weight: bold;
@@ -658,7 +748,7 @@ button:hover {
 {% block content %}
 <div class="dashboard-container">
     {% include "core/administrator/_sidebar.html" %}
-    <div class="content">
+    <div class="content" data-dashboard-container data-active-tab="{{ active_tab|default:'analytics' }}">
         <!-- Welcome Box -->
         <div class="welcome-container">
             <div class="image-container">
@@ -680,7 +770,17 @@ button:hover {
             <input type="search" placeholder="Search analytics...">
         </div>
         
-        <div class="dashboard-page">
+        <div class="dashboard-tabs">
+            <button type="button" class="dashboard-tab{% if active_tab == 'analytics' %} active{% endif %}" data-tab-trigger="analytics">
+                <i class="fas fa-chart-pie"></i> Analytics Overview
+            </button>
+            <button type="button" class="dashboard-tab{% if active_tab == 'global' %} active{% endif %}" data-tab-trigger="global">
+                <i class="fas fa-globe-africa"></i> Global Business
+            </button>
+        </div>
+        
+        <section class="tab-panel {% if active_tab == 'analytics' %}is-active{% endif %}" data-tab-panel="analytics">
+            <div class="dashboard-page">
             <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
                 <div>
                     <h1 class="page-heading mb-1">
@@ -689,7 +789,8 @@ button:hover {
                     </h1>
                     <p class="text-muted mb-0">Live indicators sourced from assessments, submissions, and learner records.</p>
                 </div>
-                <form method="get" class="row g-2 dashboard-filter align-items-end">
+                <form method="get" class="row g-2 dashboard-filter align-items-end" data-tab-aware-form>
+                    <input type="hidden" name="tab" value="{{ active_tab|default:'analytics' }}">
                     <div class="col-auto">
                         <label class="form-label">Qualification</label>
                         <select class="form-select form-select-sm" name="qualification">
@@ -827,18 +928,28 @@ button:hover {
             <div class="row g-3 mb-4">
                 <div class="col-lg-6">
                     <div class="card shadow-sm h-100" id="pass-rate-card">
-                        <div class="card-header">Pass rate by qualification</div>
+                        <div class="card-header chart-header">
+                            <span>Pass rate by qualification</span>
+                            <button type="button" class="export-chart-btn" data-chart-target="pass-rate-chart">
+                                <i class="fas fa-download"></i> Export PNG
+                            </button>
+                        </div>
                         <div class="card-body">
-                            <canvas aria-label="Pass rate by qualification" role="img" class="chart-canvas"></canvas>
+                            <canvas id="pass-rate-chart" aria-label="Pass rate by qualification" role="img" class="chart-canvas"></canvas>
                             <p class="chart-empty text-muted small mb-0">No pass rate data available for the current filters.</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-lg-6">
                     <div class="card shadow-sm h-100" id="completion-card">
-                        <div class="card-header">Assessment completion trend</div>
+                        <div class="card-header chart-header">
+                            <span>Assessment completion trend</span>
+                            <button type="button" class="export-chart-btn" data-chart-target="completion-chart">
+                                <i class="fas fa-download"></i> Export PNG
+                            </button>
+                        </div>
                         <div class="card-body">
-                            <canvas aria-label="Assessment completion trend" role="img" class="chart-canvas"></canvas>
+                            <canvas id="completion-chart" aria-label="Assessment completion trend" role="img" class="chart-canvas"></canvas>
                             <p class="chart-empty text-muted small mb-0">No completion trend data available for the selected window.</p>
                         </div>
                     </div>
@@ -848,18 +959,28 @@ button:hover {
             <div class="row g-3 mb-4">
                 <div class="col-lg-4">
                     <div class="card shadow-sm h-100" id="assessment-type-card">
-                        <div class="card-header">Assessment type mix</div>
+                        <div class="card-header chart-header">
+                            <span>Assessment type mix</span>
+                            <button type="button" class="export-chart-btn" data-chart-target="assessment-type-chart">
+                                <i class="fas fa-download"></i> Export PNG
+                            </button>
+                        </div>
                         <div class="card-body">
-                            <canvas aria-label="Assessment type distribution" role="img" class="chart-canvas"></canvas>
+                            <canvas id="assessment-type-chart" aria-label="Assessment type distribution" role="img" class="chart-canvas"></canvas>
                             <p class="chart-empty text-muted small mb-0">No assessment type distribution recorded.</p>
                         </div>
                     </div>
                 </div>
                 <div class="col-lg-8">
                     <div class="card shadow-sm h-100" id="enrollment-card">
-                        <div class="card-header">Learner enrollment by qualification</div>
+                        <div class="card-header chart-header">
+                            <span>Learner enrollment by qualification</span>
+                            <button type="button" class="export-chart-btn" data-chart-target="enrollment-chart">
+                                <i class="fas fa-download"></i> Export PNG
+                            </button>
+                        </div>
                         <div class="card-body">
-                            <canvas aria-label="Enrollment by qualification" role="img" class="chart-canvas"></canvas>
+                            <canvas id="enrollment-chart" aria-label="Enrollment by qualification" role="img" class="chart-canvas"></canvas>
                             <p class="chart-empty text-muted small mb-0">No enrollment data available.</p>
                         </div>
                     </div>
@@ -935,6 +1056,154 @@ button:hover {
                 {% endif %}
             </div>
         </div>
+        </section>
+
+        <section class="tab-panel {% if active_tab == 'global' %}is-active{% endif %}" data-tab-panel="global">
+            <div class="dashboard-page">
+                <div class="d-flex flex-wrap align-items-start justify-content-between gap-3 mb-4">
+                    <div>
+                        <h1 class="page-heading mb-1">
+                            <i class="fas fa-globe-africa me-2 text-accent"></i>
+                            Global Business Dashboard
+                        </h1>
+                        <p class="text-muted mb-0">Compare assessment centres by school, country, or continent with exportable charts.</p>
+                    </div>
+                    <form method="get" class="row g-2 dashboard-filter align-items-end" data-tab-aware-form>
+                        <input type="hidden" name="tab" value="{{ active_tab|default:'analytics' }}">
+                        <input type="hidden" name="qualification" value="{{ request.GET.qualification|default:'' }}">
+                        <input type="hidden" name="period" value="{{ request.GET.period|default:'' }}">
+                        <input type="hidden" name="paper_type" value="{{ request.GET.paper_type|default:'' }}">
+                        <div class="col-auto">
+                            <label class="form-label">Compare by</label>
+                            <select class="form-select form-select-sm" name="compare_dim">
+                                {% for value,label in global_dimension_choices %}
+                                    <option value="{{ value }}" {% if global_compare_dimension == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label">Values</label>
+                            <select class="form-select form-select-sm compare-multiselect" name="compare_values" multiple size="6">
+                                {% if global_active_dimension_options %}
+                                    {% for option in global_active_dimension_options %}
+                                        <option value="{{ option }}" {% if option in global_compare_values %}selected{% endif %}>{{ option }}</option>
+                                    {% endfor %}
+                                {% else %}
+                                    <option disabled>No {{ global_compare_dimension_label|lower }} data</option>
+                                {% endif %}
+                            </select>
+                            <small class="text-muted d-block mt-1">Use Ctrl/Cmd to select multiple entries.</small>
+                        </div>
+                        <div class="col-auto">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button type="submit" class="btn btn-primary btn-sm px-3">Apply</button>
+                                <a href="?tab=global" class="btn btn-outline-secondary btn-sm ms-1">Reset</a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                {% if global_has_data %}
+                <div class="row g-3 mb-4 global-summary">
+                    <div class="col-sm-6 col-xl-3">
+                        <div class="stat-card">
+                            <span class="stat-label">Global learners</span>
+                            <span class="stat-value">{{ global_summary.total_learners|default:0|intcomma }}</span>
+                            <span class="stat-foot stat-chip">
+                                <i class="fas fa-user-friends me-1"></i>{{ global_summary.active_submissions|default:0|intcomma }} submissions
+                            </span>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-xl-3">
+                        <div class="stat-card" data-variant="gold">
+                            <span class="stat-label">Active schools</span>
+                            <span class="stat-value">{{ global_summary.schools|default:0|intcomma }}</span>
+                            <span class="stat-foot stat-chip">Across {{ global_summary.countries|default:0|intcomma }} countries</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-xl-3">
+                        <div class="stat-card" data-variant="slate">
+                            <span class="stat-label">Continental reach</span>
+                            <span class="stat-value">{{ global_summary.continents|default:0|intcomma }}</span>
+                            <span class="stat-foot text-muted">Continents represented</span>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-xl-3">
+                        <div class="stat-card" data-variant="neutral">
+                            <span class="stat-label">Top performer</span>
+                            {% if global_summary.top_school %}
+                                <span class="stat-value">{{ global_summary.top_school_rate|default:0|floatformat:1 }}%</span>
+                                <span class="stat-foot">{{ global_summary.top_school }}</span>
+                            {% else %}
+                                <span class="stat-value text-muted">n/a</span>
+                                <span class="stat-foot text-muted">No submissions yet</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm mb-4" id="global-comparison-card">
+                    <div class="card-header chart-header">
+                        <div>
+                            <div class="fw-semibold">Comparison analytics</div>
+                            <small class="text-muted">Comparing by {{ global_compare_dimension_label|lower }}</small>
+                        </div>
+                        <button type="button" class="export-chart-btn" data-chart-target="global-comparison-chart">
+                            <i class="fas fa-download"></i> Export PNG
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="global-comparison-chart" class="chart-canvas" role="img" aria-label="Global comparison chart"></canvas>
+                        <p class="chart-empty text-muted small mb-0">Select at least one {{ global_compare_dimension_label|lower }} to plot analytics.</p>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm">
+                    <div class="card-header">{{ global_compare_dimension_label }} drill-down</div>
+                    <div class="table-responsive">
+                        <table class="table table-dashboard table-hover align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col" class="ps-4">{{ global_compare_dimension_label }}</th>
+                                    <th scope="col">Learners</th>
+                                    <th scope="col">Submissions</th>
+                                    <th scope="col">Pass rate</th>
+                                    <th scope="col">Average score</th>
+                                    <th scope="col">Units</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for row in global_compare_rows %}
+                                    <tr>
+                                        <td class="ps-4">
+                                            <div class="fw-semibold">{{ row.label }}</div>
+                                            {% if global_compare_dimension != 'school' %}
+                                                <div class="text-muted small">{{ row.units|default:1|intcomma }} centres</div>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ row.learners|default:0|intcomma }}</td>
+                                        <td>{{ row.submissions|default:0|intcomma }}</td>
+                                        <td>{{ row.pass_rate|default:0|floatformat:1 }}%</td>
+                                        <td>{{ row.avg_score|default:0|floatformat:1 }}%</td>
+                                        <td>{{ row.units|default:1|intcomma }}</td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4 text-muted">Select values on the right to compare performance.</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                    <div class="empty-state">
+                        <i class="fas fa-info-circle me-2"></i>No global metrics are available for the selected filters yet. Try broadening your filters or ingesting assessment data.
+                    </div>
+                {% endif %}
+            </div>
+        </section>
     </div>
 </div>
 {% endblock %}
@@ -961,6 +1230,11 @@ button:hover {
 {% else %}
     <script id="enrollment-data" type="application/json">[]</script>
 {% endif %}
+{% if global_compare_chart_data %}
+    {{ global_compare_chart_data|json_script:"global-compare-data" }}
+{% else %}
+    <script id="global-compare-data" type="application/json">[]</script>
+{% endif %}
 <script>
 (function () {
     function safeParse(id, fallback) {
@@ -971,37 +1245,111 @@ button:hover {
         try {
             return JSON.parse(payload);
         } catch (err) {
-            console.warn("Unable to parse dataset for", id, err);
+            console.warn('Unable to parse dataset for', id, err);
             return fallback;
         }
     }
 
     function toggleEmptyState(container, hasData) {
         if (!container) { return; }
-        var canvas = container.querySelector("canvas");
-        var empty = container.querySelector(".chart-empty");
+        var canvas = container.querySelector('canvas');
+        var empty = container.querySelector('.chart-empty');
+        var exportBtn = container.querySelector('.export-chart-btn');
         if (canvas) {
-            canvas.classList.toggle("d-none", !hasData);
+            canvas.classList.toggle('d-none', !hasData);
         }
         if (empty) {
-            empty.classList.toggle("d-none", !!hasData);
+            empty.classList.toggle('d-none', !!hasData);
+        }
+        if (exportBtn) {
+            exportBtn.disabled = !hasData;
         }
     }
 
-    var passRateContainer = document.getElementById("pass-rate-card");
-    var passRateDataset = safeParse("pass-rate-data", []);
+    var chartRegistry = {};
+
+    function renderChart(canvasId, config) {
+        var canvas = document.getElementById(canvasId);
+        if (!canvas) { return null; }
+        if (chartRegistry[canvasId]) {
+            chartRegistry[canvasId].destroy();
+        }
+        var chart = new Chart(canvas, config);
+        chartRegistry[canvasId] = chart;
+        return chart;
+    }
+
+    function setupTabControls() {
+        var container = document.querySelector('[data-dashboard-container]');
+        if (!container) { return; }
+        var activeTab = container.getAttribute('data-active-tab') || 'analytics';
+        var buttons = container.querySelectorAll('[data-tab-trigger]');
+        var panels = container.querySelectorAll('[data-tab-panel]');
+        var forms = container.querySelectorAll('form[data-tab-aware-form]');
+
+        function applyTab(tab) {
+            activeTab = tab || 'analytics';
+            container.setAttribute('data-active-tab', activeTab);
+            buttons.forEach(function (btn) {
+                var target = btn.getAttribute('data-tab-trigger');
+                btn.classList.toggle('active', target === activeTab);
+            });
+            panels.forEach(function (panel) {
+                var target = panel.getAttribute('data-tab-panel');
+                panel.classList.toggle('is-active', target === activeTab);
+            });
+            forms.forEach(function (form) {
+                var hidden = form.querySelector('input[name="tab"]');
+                if (hidden) { hidden.value = activeTab; }
+            });
+        }
+
+        buttons.forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var target = btn.getAttribute('data-tab-trigger');
+                if (target && target !== activeTab) {
+                    applyTab(target);
+                }
+            });
+        });
+
+        applyTab(activeTab);
+    }
+
+    function setupExportButtons() {
+        document.querySelectorAll('.export-chart-btn').forEach(function (button) {
+            button.addEventListener('click', function () {
+                if (button.disabled) { return; }
+                var target = button.getAttribute('data-chart-target');
+                var chart = target && chartRegistry[target];
+                if (!chart) { return; }
+                var link = document.createElement('a');
+                var timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                link.href = chart.toBase64Image();
+                link.download = target + '-' + timestamp + '.png';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            });
+        });
+    }
+
+    setupTabControls();
+
+    var passRateContainer = document.getElementById('pass-rate-card');
+    var passRateDataset = safeParse('pass-rate-data', []);
     var hasPassRate = Array.isArray(passRateDataset) && passRateDataset.length > 0;
     toggleEmptyState(passRateContainer, hasPassRate);
     if (hasPassRate) {
-        new Chart(passRateContainer.querySelector("canvas"), {
-            type: "bar",
+        renderChart('pass-rate-chart', {
+            type: 'bar',
             data: {
-                labels: passRateDataset.map(function (row) { return row.qualification || row.name || "Qualification"; }),
+                labels: passRateDataset.map(function (row) { return row.qualification || row.name || 'Qualification'; }),
                 datasets: [{
-                    label: "Pass rate (%)",
+                    label: 'Pass rate (%)',
                     data: passRateDataset.map(function (row) { return Number(row.pass_rate || row.value || 0); }),
                     backgroundColor: passRateDataset.map(function (_, idx) {
-                        var palette = ["#3a063a", "#580658", "#8f6620", "#b8832a", "#403675"];
+                        var palette = ['#3a063a', '#580658', '#8f6620', '#b8832a', '#403675'];
                         return palette[idx % palette.length];
                     }),
                     borderRadius: 8
@@ -1014,31 +1362,31 @@ button:hover {
                     y: {
                         beginAtZero: true,
                         max: 100,
-                        ticks: { callback: function (value) { return value + "%"; } }
+                        ticks: { callback: function (value) { return value + '%'; } }
                     }
                 }
             }
         });
     }
 
-    var completionContainer = document.getElementById("completion-card");
-    var completionDataset = safeParse("completion-trend-data", []);
+    var completionContainer = document.getElementById('completion-card');
+    var completionDataset = safeParse('completion-trend-data', []);
     var hasCompletion = Array.isArray(completionDataset) && completionDataset.length > 0;
     toggleEmptyState(completionContainer, hasCompletion);
     if (hasCompletion) {
-        new Chart(completionContainer.querySelector("canvas"), {
-            type: "line",
+        renderChart('completion-chart', {
+            type: 'line',
             data: {
-                labels: completionDataset.map(function (row) { return row.label || row.period || row.month || ""; }),
+                labels: completionDataset.map(function (row) { return row.label || row.period || row.month || ''; }),
                 datasets: [{
-                    label: "Assessments completed",
+                    label: 'Assessments completed',
                     data: completionDataset.map(function (row) { return Number(row.completed || row.value || 0); }),
-                    borderColor: "#3a063a",
-                    backgroundColor: "rgba(58, 6, 58, 0.12)",
+                    borderColor: '#3a063a',
+                    backgroundColor: 'rgba(58, 6, 58, 0.12)',
                     tension: 0.4,
                     fill: true,
                     pointRadius: 3,
-                    pointBackgroundColor: "#3a063a"
+                    pointBackgroundColor: '#3a063a'
                 }]
             },
             options: {
@@ -1051,10 +1399,10 @@ button:hover {
         });
     }
 
-    var typeContainer = document.getElementById("assessment-type-card");
-    var typeDataset = safeParse("assessment-type-data", {});
+    var typeContainer = document.getElementById('assessment-type-card');
+    var typeDataset = safeParse('assessment-type-data', {});
     var typeEntries = [];
-    if (typeDataset && typeof typeDataset === "object") {
+    if (typeDataset && typeof typeDataset === 'object') {
         Object.keys(typeDataset).forEach(function (key) {
             var val = Number(typeDataset[key]);
             if (!isNaN(val) && val > 0) {
@@ -1064,43 +1412,43 @@ button:hover {
     }
     toggleEmptyState(typeContainer, typeEntries.length > 0);
     if (typeEntries.length > 0) {
-        new Chart(typeContainer.querySelector("canvas"), {
-            type: "doughnut",
+        renderChart('assessment-type-chart', {
+            type: 'doughnut',
             data: {
                 labels: typeEntries.map(function (row) { return row.label; }),
                 datasets: [{
                     data: typeEntries.map(function (row) { return row.value; }),
-                    backgroundColor: ["#3a063a", "#8f6620", "#b8832a", "#403675", "#9478b8"]
+                    backgroundColor: ['#3a063a', '#8f6620', '#b8832a', '#403675', '#9478b8']
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { position: "bottom" }
+                    legend: { position: 'bottom' }
                 }
             }
         });
     }
 
-    var enrollmentContainer = document.getElementById("enrollment-card");
-    var enrollmentDataset = safeParse("enrollment-data", []);
+    var enrollmentContainer = document.getElementById('enrollment-card');
+    var enrollmentDataset = safeParse('enrollment-data', []);
     var hasEnrollment = Array.isArray(enrollmentDataset) && enrollmentDataset.length > 0;
     toggleEmptyState(enrollmentContainer, hasEnrollment);
     if (hasEnrollment) {
-        new Chart(enrollmentContainer.querySelector("canvas"), {
-            type: "bar",
+        renderChart('enrollment-chart', {
+            type: 'bar',
             data: {
-                labels: enrollmentDataset.map(function (row) { return row.qualification || row.name || ""; }),
+                labels: enrollmentDataset.map(function (row) { return row.qualification || row.name || ''; }),
                 datasets: [{
-                    label: "Learners",
+                    label: 'Learners',
                     data: enrollmentDataset.map(function (row) { return Number(row.learners || row.count || 0); }),
-                    backgroundColor: "#580658",
+                    backgroundColor: '#580658',
                     borderRadius: 8
                 }]
             },
             options: {
-                indexAxis: "y",
+                indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
                 scales: {
@@ -1109,6 +1457,76 @@ button:hover {
             }
         });
     }
+
+    var globalContainer = document.getElementById('global-comparison-card');
+    var globalDataset = safeParse('global-compare-data', []);
+    var hasGlobal = Array.isArray(globalDataset) && globalDataset.length > 0;
+    toggleEmptyState(globalContainer, hasGlobal);
+    if (hasGlobal) {
+        var labels = globalDataset.map(function (row) { return row.label || ''; });
+        renderChart('global-comparison-chart', {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        type: 'bar',
+                        label: 'Learners',
+                        data: globalDataset.map(function (row) { return Number(row.learners || 0); }),
+                        backgroundColor: '#580658',
+                        borderRadius: 8
+                    },
+                    {
+                        type: 'bar',
+                        label: 'Submissions',
+                        data: globalDataset.map(function (row) { return Number(row.submissions || 0); }),
+                        backgroundColor: '#b8832a',
+                        borderRadius: 8
+                    },
+                    {
+                        type: 'line',
+                        label: 'Pass rate (%)',
+                        data: globalDataset.map(function (row) { return Number(row.pass_rate || 0); }),
+                        borderColor: '#3a063a',
+                        backgroundColor: 'rgba(58, 6, 58, 0.15)',
+                        yAxisID: 'y1',
+                        tension: 0.3,
+                        fill: false
+                    },
+                    {
+                        type: 'line',
+                        label: 'Average score (%)',
+                        data: globalDataset.map(function (row) { return Number(row.avg_score || 0); }),
+                        borderColor: '#8f6620',
+                        backgroundColor: 'rgba(143, 102, 32, 0.2)',
+                        borderDash: [5, 4],
+                        yAxisID: 'y1',
+                        tension: 0.3,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Learners / submissions' }
+                    },
+                    y1: {
+                        beginAtZero: true,
+                        position: 'right',
+                        grid: { drawOnChartArea: false },
+                        ticks: { callback: function (value) { return value + '%'; } },
+                        title: { display: true, text: 'Performance (%)' }
+                    }
+                }
+            }
+        });
+    }
+
+    setupExportButtons();
 })();
 </script>
 {% endblock %}

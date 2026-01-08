@@ -36,6 +36,12 @@
             </a>
         </li>
         <li class="nav-item">
+            <a href="{% url 'global_business_upload' %}"
+                class="nav-link{% if request.resolver_match.url_name == 'global_business_upload' %} active{% endif %}">
+                <i class="fas fa-globe-africa me-2"></i>Global Business Data
+            </a>
+        </li>
+        <li class="nav-item">
             <a href="{% url 'administrator_paperbank' %}"
                 class="nav-link{% if request.resolver_match.url_name == 'administrator_paperbank' %} active{% endif %}">
                 <i class="fas fa-folder-open me-2"></i>Paper Bank

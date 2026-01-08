@@ -10,13 +10,104 @@ Design goals
 from __future__ import annotations
 
 from dataclasses import dataclass, asdict
-from typing import List, Dict, Any, Optional
-import os, json
+from typing import List, Dict, Any, Optional, Tuple
+import os, json, re
 import logging
 import requests
 
+try:
+    from google import generativeai as genai  # type: ignore
+except Exception:  # pragma: no cover - optional dependency
+    genai = None
+
 from core.models import ExtractorPaper as Paper, ExtractorBlock as Block
 from .question_detect import detect_in_any_line
+
+logger = logging.getLogger(__name__)
+_PREFACE_TYPES = {"cover_page", "instruction", "rubric"}
+
+
+def _merge_preface_instructions(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Merge consecutive instruction-style suggestions before the first numbered question."""
+    if not items:
+        return items
+    idx = 0
+    preface: List[Dict[str, Any]] = []
+    cover_prefix: List[Dict[str, Any]] = []
+
+    if items and (items[0].get("qtype") or "").lower() == "cover_page":
+        cover_prefix.append(items[0])
+        idx = 1
+
+    while idx < len(items):
+        entry = items[idx]
+        qnum = (entry.get("question_number") or "").strip()
+        if qnum:
+            break
+        qtype = (entry.get("qtype") or "").lower()
+        if qtype and qtype not in (_PREFACE_TYPES | {"heading", "paragraph"}):
+            break
+        preface.append(entry)
+        idx += 1
+
+    if len(preface) <= 1:
+        return cover_prefix + preface + items[idx:]
+
+    block_ids: List[int] = []
+    has_table = False
+    has_image = False
+    for entry in preface:
+        block_ids.extend(entry.get("block_ids") or [])
+        has_table = has_table or bool(entry.get("has_table"))
+        has_image = has_image or bool(entry.get("has_image"))
+
+    merged = {
+        "block_ids": block_ids,
+        "question_number": "0",
+        "marks": "0",
+        "qtype": "instruction",
+        "has_table": has_table,
+        "has_image": has_image,
+        "parent_number": "",
+        "header_label": "Instructions",
+        "case_study_label": "",
+    }
+    remainder = items[idx:]
+    return cover_prefix + [merged] + remainder
+
+
+def _postprocess_suggestions(items: Optional[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
+    if not items:
+        return []
+    work = _merge_preface_instructions(list(items))
+
+    for i, entry in enumerate(work):
+        qtype = (entry.get("qtype") or "").lower()
+        qnum = (entry.get("question_number") or "").strip()
+
+        normalize_as_instruction = False
+        if i == 0 and not qnum:
+            normalize_as_instruction = True
+        if qnum.isdigit() and 1 <= int(qnum) <= 12 and qtype not in _PREFACE_TYPES:
+            normalize_as_instruction = True
+
+        if normalize_as_instruction:
+            entry["qtype"] = "instruction"
+            qtype = "instruction"
+            qnum = "0"
+
+        if qtype in _PREFACE_TYPES:
+            entry["question_number"] = qnum or "0"
+            entry["marks"] = (entry.get("marks") or "0").strip() or "0"
+            entry["parent_number"] = entry.get("parent_number") or ""
+            entry["header_label"] = entry.get("header_label") or (
+                "Instructions" if qtype == "instruction" else "Cover Page"
+            )
+        else:
+            entry["question_number"] = qnum
+            entry["marks"] = (entry.get("marks") or "").strip()
+
+    return work
 
 
 def _guess_qtype(texts: List[str]) -> str:
@@ -112,13 +203,145 @@ def _ollama_suggest(paper: Paper, blocks: List[Block]) -> Optional[List[Dict[str
             })
         return out or None
     except Exception as ex:
-        logging.getLogger(__name__).warning("Ollama suggest failed: %s", ex)
+        logger.warning("Ollama suggest failed: %s", ex)
         return None
 
 
-def suggest_boxes_for_paper(paper: Paper) -> List[Dict[str, Any]]:
+def _strip_code_fences(payload: str) -> str:
+    cleaned = payload.strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?", "", cleaned, flags=re.IGNORECASE)
+        cleaned = cleaned.strip("` \n")
+    if cleaned.endswith("```"):
+        cleaned = cleaned[: -3]
+    return cleaned.strip()
+
+
+def _gemini_suggest(paper: Paper, blocks: List[Block]) -> Optional[List[Dict[str, Any]]]:
+    """Call Gemini (if configured) to propose question regions."""
+    if not blocks or not genai:
+        return None
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return None
+
+    model_name = (
+        os.getenv("GEMINI_DRAW_MODEL")
+        or os.getenv("GEMINI_MODEL")
+        or "models/gemini-2.0-flash"
+    )
+
+    try:
+        genai.configure(api_key=api_key)
+    except Exception as ex:  # pragma: no cover - defensive
+        logger.warning("Gemini configure failed: %s", ex)
+        return None
+
+    serialised_blocks = []
+    lookup: Dict[int, Block] = {}
+    for idx, block in enumerate(blocks, start=1):
+        lookup[block.id] = block
+        text = (block.text or "").strip()
+        if len(text) > 600:
+            text = text[:600] + "…"
+        serialised_blocks.append(
+            {
+                "id": block.id,
+                "order": idx,
+                "type": block.block_type,
+                "text": text,
+                "has_table": block.block_type == "table",
+                "has_image": (block.block_type == "image") or block.images.exists(),
+                "detected_qnum": (block.detected_qnum or "").strip(),
+                "detected_marks": (block.detected_marks or "").strip(),
+            }
+        )
+
+    system_prompt = (paper.system_prompt or build_default_system_prompt()).strip()
+    instructions = (
+        "Group the provided ordered blocks into contiguous question regions. "
+        "Each region starts where a numbered question header appears (e.g. 1.1, 1.1.1). "
+        "Include the supporting content (paragraphs, tables, figures) that belongs to the question "
+        "until the next peer header. Return ONLY strict JSON:\n"
+        "{\n"
+        '  "items": [\n'
+        "    {\n"
+        '      "block_ids": [list of ints],\n'
+        '      "question_number": "1.1",\n'
+        '      "marks": "10",\n'
+        '      "qtype": "constructed|case_study|instruction|table_q|image_q",\n'
+        '      "has_table": true/false,\n'
+        '      "has_image": true/false\n'
+        "    }\n"
+        "  ]\n"
+        "}\n"
+        "Use block IDs exactly as provided and prefer contiguous ranges."
+    )
+
+    try:
+        payload = f"{system_prompt}\n\n{instructions}\n\nBlocks JSON:\n{json.dumps(serialised_blocks, ensure_ascii=False)}"
+        model = genai.GenerativeModel(model_name)
+        response = model.generate_content(payload)
+        raw = getattr(response, "text", "") or ""
+        cleaned = _strip_code_fences(raw)
+        parsed = json.loads(cleaned)
+    except Exception as ex:
+        logger.warning("Gemini suggest failed: %s", ex)
+        return None
+
+    items = parsed.get("items") if isinstance(parsed, dict) else parsed
+    if not isinstance(items, list):
+        return None
+
+    valid_ids = set(lookup.keys())
+    results: List[Dict[str, Any]] = []
+    for entry in items:
+        raw_ids = entry.get("block_ids") or entry.get("blocks") or entry.get("ids") or []
+        block_ids: List[int] = []
+        for raw_id in raw_ids:
+            try:
+                block_id = int(raw_id)
+            except (TypeError, ValueError):
+                continue
+            if block_id in valid_ids:
+                block_ids.append(block_id)
+        if not block_ids:
+            continue
+
+        has_table = entry.get("has_table")
+        if has_table is None:
+            has_table = any(lookup[i].block_type == "table" for i in block_ids)
+        has_image = entry.get("has_image")
+        if has_image is None:
+            has_image = any(
+                (lookup[i].block_type == "image") or lookup[i].images.exists()
+                for i in block_ids
+            )
+        qtype = (entry.get("qtype") or "").strip() or (
+            "table_q" if has_table else ("image_q" if has_image else "constructed")
+        )
+
+        results.append(
+            {
+                "block_ids": block_ids,
+                "question_number": (entry.get("question_number") or "").strip(),
+                "marks": (entry.get("marks") or "").strip(),
+                "qtype": qtype,
+                "has_table": bool(has_table),
+                "has_image": bool(has_image),
+                "parent_number": (entry.get("parent_number") or "").strip(),
+                "header_label": (entry.get("header_label") or "").strip(),
+                "case_study_label": (entry.get("case_study_label") or "").strip(),
+            }
+        )
+
+    return results or None
+
+
+def suggest_boxes_for_paper(paper: Paper) -> Tuple[List[Dict[str, Any]], str]:
     """
-    Returns a list of suggestions:
+    Returns a tuple: (suggestions, strategy).
+    Suggestions look like:
     [
       {
         'block_ids': [int, ...],       # contiguous region from header to next header-1
@@ -130,7 +353,7 @@ def suggest_boxes_for_paper(paper: Paper) -> List[Dict[str, Any]]:
       }, ...
     ]
 
-    Current implementation uses heuristics; future: use paper.system_prompt with an LLM.
+    Strategy indicates which backend produced the suggestions: 'gemini', 'ollama', or 'heuristic'.
     """
     # Ensure there is a system prompt to store on the paper for future use
     if not (paper.system_prompt or "").strip():
@@ -139,10 +362,13 @@ def suggest_boxes_for_paper(paper: Paper) -> List[Dict[str, Any]]:
 
     blocks = list(paper.blocks.order_by("order_index").prefetch_related("images"))
 
-    # Try Ollama first; fallback to heuristics
+    # Try Gemini first for best quality, then Ollama, then heuristics.
+    gemini_suggestions = _gemini_suggest(paper, blocks)
+    if gemini_suggestions:
+        return _postprocess_suggestions(gemini_suggestions), "gemini"
     ollama_suggestions = _ollama_suggest(paper, blocks)
     if ollama_suggestions:
-        return ollama_suggestions
+        return _postprocess_suggestions(ollama_suggestions), "ollama"
     suggestions: List[Dict[str, Any]] = []
 
     cur_ids: List[int] = []
@@ -204,4 +430,4 @@ def suggest_boxes_for_paper(paper: Paper) -> List[Dict[str, Any]]:
             continue
         cleaned.append(s)
 
-    return cleaned
+    return _postprocess_suggestions(cleaned), "heuristic"

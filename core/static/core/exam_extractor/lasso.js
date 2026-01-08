@@ -7,11 +7,14 @@
   const form = document.getElementById("meta-form");
   const cancel = document.getElementById("cancel-meta");
   const btnAIDraw = document.getElementById("btn-ai-draw");
-  const contentEdit = document.getElementById('content-edit');
-  const contentDelete = document.getElementById('content-delete');
+  const btnAIAuto = document.getElementById("btn-ai-draw-auto");
+  const btnGadzira = document.getElementById("btn-gadzira");
   const contentClose = document.getElementById('content-close');
   const conditionalFields = Array.from(form?.querySelectorAll('.conditional-field') || []);
   const boxesList = document.getElementById('boxes-list');
+  if (btnAIAuto && !btnAIAuto.dataset.originalLabel) {
+    btnAIAuto.dataset.originalLabel = btnAIAuto.textContent?.trim() || 'Auto Draw All';
+  }
 
   let startX = 0, startY = 0, rectEl = null, dragging = false;
   let lastBox = null;
@@ -172,6 +175,66 @@
 
   setAIDrawMode('fetch');
 
+  function notifyAIStrategy(strategy) {
+    const mode = (strategy || '').toLowerCase();
+    if (mode === 'gemini') {
+      toast('Using Gemini to suggest blocks', 'info', 2300);
+    } else if (mode === 'ollama') {
+      toast('Using local LLM suggestions', 'info', 2300);
+    } else if (mode === 'gadzira') {
+      toast('Using Gadzira heuristics', 'info', 2300);
+    } else if (mode) {
+      toast(`AI mode: ${mode}`, 'info', 2300);
+    } else {
+      toast('AI unavailable - using heuristics', 'warning', 2800);
+    }
+  }
+
+  function setAutoDrawButtonState(state) {
+    if (!btnAIAuto) return;
+    if (state === 'fetch') {
+      btnAIAuto.disabled = true;
+      btnAIAuto.textContent = 'Fetching AI...';
+      btnAIAuto.dataset.state = 'fetch';
+    } else if (state === 'run') {
+      btnAIAuto.disabled = true;
+      btnAIAuto.textContent = 'Auto Drawing...';
+      btnAIAuto.dataset.state = 'run';
+    } else {
+      btnAIAuto.disabled = false;
+      btnAIAuto.textContent = btnAIAuto.dataset.originalLabel || 'Auto Draw All';
+      delete btnAIAuto.dataset.state;
+    }
+  }
+
+  function finishAutoDraw(success, messageOverride) {
+    const total = window.__aiTotal || 0;
+    const saved = window.__autoDrawAllSaved || 0;
+    const msg = messageOverride || (success ? `Auto draw complete (${saved}/${total} saved)` : '');
+    if (msg) {
+      toast(msg, success ? 'success' : 'info', success ? 2600 : 2300);
+    }
+    window.__autoDrawAllActive = false;
+    window.__autoDrawAllSaved = 0;
+    setAutoDrawButtonState('idle');
+    if (btnAIDraw) btnAIDraw.disabled = false;
+    setLLMStatus(false, 'Idle');
+    if (window.__captureAllActive) {
+      try {
+        window.dispatchEvent(
+          new CustomEvent('capture-all-finished', { detail: { success: !!success, saved, total } })
+        );
+        const btnCapture = document.getElementById('btn-capture-all');
+        if (btnCapture) {
+          btnCapture.disabled = false;
+          btnCapture.textContent = btnCapture.dataset.originalLabel || 'Capture All';
+          delete btnCapture.dataset.state;
+        }
+      } catch (_) { }
+      window.__captureAllActive = false;
+    }
+  }
+
   function maybeAdvanceAISuggestions() {
     if (window.__aiQueue && window.__aiQueue.length) {
       setAIDrawMode('resume');
@@ -187,6 +250,10 @@
   window.__aiQueue = window.__aiQueue || [];
   window.__aiCurrent = window.__aiCurrent || null;
   window.__aiPaused = window.__aiPaused || false;
+  window.__autoDrawAllActive = window.__autoDrawAllActive || false;
+  window.__autoDrawAllSaved = window.__autoDrawAllSaved || 0;
+  window.__captureAllActive = window.__captureAllActive || false;
+  const AUTO_DRAW_DELAY_MS = 500;
 
   // --- LLM status button ---
   const llmStatus = document.getElementById('llm-status');
@@ -262,8 +329,46 @@
     form?.qtype?.addEventListener('change', () => updateConditionalFields(form.qtype.value));
   } catch (_) { }
 
+  const removeAutoNote = () => {
+    if (!modal) return;
+    const existing = modal.querySelector('.auto-mode-note');
+    if (existing) existing.style.display = 'none';
+  };
+
+  const ensureAutoNote = () => {
+    if (!modal || !window.__autoDrawAllActive) {
+      removeAutoNote();
+      return null;
+    }
+    let note = modal.querySelector('.auto-mode-note');
+    if (!note) {
+      note = document.createElement('div');
+      note.className = 'auto-mode-note';
+      Object.assign(note.style, {
+        marginBottom: '0.5rem',
+        padding: '0.4rem 0.6rem',
+        borderRadius: '0.3rem',
+        background: '#eef2ff',
+        color: '#1e3a8a',
+        fontSize: '0.88rem',
+        fontWeight: '600',
+        border: '1px solid #c7d2fe'
+      });
+      const parent = modal.querySelector('#meta-form');
+      parent?.insertBefore(note, parent.firstChild);
+    }
+    note.textContent = 'Auto-saving suggestion...';
+    note.style.display = 'block';
+    return note;
+  };
+
   const openModal = (box, meta) => {
     modal.classList.remove("hidden");
+    if (window.__autoDrawAllActive) {
+      ensureAutoNote();
+    } else {
+      removeAutoNote();
+    }
     if (typeof form.reset === 'function') {
       form.reset();
     }
@@ -286,9 +391,17 @@
       form.case_study_label.value = '';
     }
     updateConditionalFields(form.qtype.value);
+    const qtypeValue = (form.qtype?.value || '').toLowerCase();
+    if (qtypeValue === 'cover_page' || qtypeValue === 'instruction') {
+      form.question_number.value = '0';
+      form.marks.value = '0';
+      if (form.parent_number) form.parent_number.value = '';
+    }
     lastBox = box;
     // Focus first field for quicker entry
-    try { form.querySelector('#question_number')?.focus(); } catch (_) { }
+    try {
+      form.querySelector('#question_number')?.focus();
+    } catch (_) { }
 
     // Add simple resize handles to the current selection rect, if present
     try {
@@ -356,6 +469,15 @@
         });
       });
     } catch (_) { }
+    if (window.__autoDrawAllActive) {
+      setTimeout(() => {
+        try {
+          form?.requestSubmit();
+        } catch (_) {
+          form?.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+        }
+      }, AUTO_DRAW_DELAY_MS);
+    }
   };
 
   container?.addEventListener("mouseup", (e) => {
@@ -380,6 +502,13 @@
     modal.classList.add("hidden");
     // cleanup
     [...overlay.querySelectorAll(".selection-rect")].forEach(el => el.remove());
+    if (window.__autoDrawAllActive) {
+      window.__aiQueue = [];
+      window.__aiCurrent = null;
+      window.__aiPaused = false;
+      finishAutoDraw(false, 'Auto draw cancelled');
+      return;
+    }
     // Keep overlay interactive for future drawing
     if (window.__aiCurrent) {
       window.__aiQueue = window.__aiQueue || [];
@@ -593,59 +722,6 @@
       });
       return;
     }
-    // When opening content, remember current node and attach actions
-    if (targetBtn.classList.contains('view-content')) {
-      window.__currentBoxNode = node;
-      // Add content modal actions if missing
-      const editBtn = document.getElementById('content-edit');
-      const delBtn = document.getElementById('content-delete');
-      const header = document.querySelector('#content-modal .preview-header');
-      if (header && (!editBtn || !delBtn)) {
-        const span = document.createElement('span');
-        const mkBtn = (id, text) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'btn-icon'; b.id = id; b.textContent = text; return b; };
-        const e1 = mkBtn('content-edit', 'Edit');
-        const d1 = mkBtn('content-delete', 'Delete');
-        const close = document.getElementById('content-close');
-        span.appendChild(e1); span.appendChild(d1);
-        if (close) { const c2 = close.cloneNode(true); c2.id = 'content-close-2'; span.appendChild(c2); }
-        header.appendChild(span);
-      }
-      // Wire handlers (delegated each open)
-      setTimeout(() => {
-        const cur = window.__currentBoxNode;
-        const e1 = document.getElementById('content-edit');
-        const d1 = document.getElementById('content-delete');
-        e1?.addEventListener('click', () => {
-          if (!cur) return;
-          // Trigger edit flow
-          const x = parseFloat(cur.dataset.x), y = parseFloat(cur.dataset.y);
-          const w = parseFloat(cur.dataset.w), h = parseFloat(cur.dataset.h);
-          [...overlay.querySelectorAll('.selection-rect')].forEach(el => el.remove());
-          const rectNow = document.createElement('div');
-          rectNow.className = 'selection-rect';
-          overlay.appendChild(rectNow);
-          Object.assign(rectNow.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
-          openModal({ x, y, w, h }, { question_number: cur.dataset.qn, marks: cur.dataset.marks, qtype: cur.dataset.qtype });
-          form.__originalAction = form.__originalAction || form.action;
-          if (cur.dataset.updateUrl) form.action = cur.dataset.updateUrl;
-          document.getElementById('content-modal')?.classList.add('hidden');
-        }, { once: true });
-        d1?.addEventListener('click', async () => {
-          if (!cur) return;
-          const url = cur.dataset.deleteUrl || (cur.dataset.updateUrl ? cur.dataset.updateUrl.replace('/update/', '/delete/') : '');
-          if (!url) return;
-          if (!confirm('Delete this box?')) return;
-          const csrf = document.querySelector('input[name=csrfmiddlewaretoken]')?.value;
-          const resp = await fetch(url, { method: 'POST', credentials: 'same-origin', headers: csrf ? { 'X-CSRFToken': csrf } : {} });
-          if (resp.ok) {
-            cur.remove();
-            document.getElementById('content-modal')?.classList.add('hidden');
-          } else {
-            alert('Failed to delete box');
-          }
-        }, { once: true });
-      }, 0);
-    }
     if (targetBtn.classList.contains('view-snapshot')) {
       try {
         const url = node.dataset.jsonUrl;
@@ -706,6 +782,7 @@
             body.appendChild(p);
           } else if (item.type === 'table') {
             const div = document.createElement('div');
+            div.className = 'block-table';
             div.innerHTML = item.html || '';
             body.appendChild(div);
           } else if (item.type === 'image') {
@@ -723,38 +800,6 @@
         document.getElementById('content-ok')?.addEventListener('click', () => modal.classList.add('hidden'), { once: true });
         modal.addEventListener('click', (ev) => { if (ev.target === modal) modal.classList.add('hidden'); }, { once: true });
       } catch (_) { }
-    }
-  });
-
-  // Content modal actions
-  contentEdit?.addEventListener('click', () => {
-    const node = window.__currentBoxNode;
-    if (!node) return;
-    const x = parseFloat(node.dataset.x), y = parseFloat(node.dataset.y);
-    const w = parseFloat(node.dataset.w), h = parseFloat(node.dataset.h);
-    [...overlay.querySelectorAll('.selection-rect')].forEach(el => el.remove());
-    const rectNow = document.createElement('div'); rectNow.className = 'selection-rect'; overlay.appendChild(rectNow);
-    Object.assign(rectNow.style, { left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px` });
-    overlay.style.pointerEvents = 'auto';
-    openModal({ x, y, w, h }, { question_number: node.dataset.qn, marks: node.dataset.marks, qtype: node.dataset.qtype });
-    form.__originalAction = form.__originalAction || form.action;
-    if (node.dataset.updateUrl) form.action = node.dataset.updateUrl;
-    document.getElementById('content-modal')?.classList.add('hidden');
-  });
-
-  contentDelete?.addEventListener('click', async () => {
-    const node = window.__currentBoxNode;
-    if (!node) return;
-    const url = node.dataset.deleteUrl || (node.dataset.updateUrl ? node.dataset.updateUrl.replace('/update/', '/delete/') : '');
-    if (!url) return;
-    if (!confirm('Delete this box?')) return;
-    const csrf = document.querySelector('input[name=csrfmiddlewaretoken]')?.value;
-    const resp = await fetch(url, { method: 'POST', credentials: 'same-origin', headers: csrf ? { 'X-CSRFToken': csrf } : {} });
-    if (resp.ok) {
-      node.remove();
-      document.getElementById('content-modal')?.classList.add('hidden');
-    } else {
-      alert('Failed to delete box');
     }
   });
 
@@ -902,6 +947,9 @@
 
           list.prepend(details);
           details.open = true;
+          if (window.__autoDrawAllActive) {
+            window.__autoDrawAllSaved = (window.__autoDrawAllSaved || 0) + 1;
+          }
           try { renderSavedHighlights(); } catch (_) { }
         }
       } catch (_) { }
@@ -911,11 +959,18 @@
           toast('Saved. Moving to next suggestion...', 'success', 1200);
           processNextAIDraw();
         } else if (typeof window.__aiTotal === 'number') {
-          toast('AI drawing complete', 'success', 2000);
+          if (window.__autoDrawAllActive) {
+            finishAutoDraw(true);
+          } else {
+            toast('AI drawing complete', 'success', 2000);
+          }
         }
       } catch (_) { }
     } else {
       alert("Failed to save box");
+      if (window.__autoDrawAllActive) {
+        finishAutoDraw(false, 'Auto draw stopped (save failed)');
+      }
     }
   });
 
@@ -980,6 +1035,9 @@
       window.__aiCurrent = null;
       setLLMStatus(false, 'Idle');
       setAIDrawMode('fetch');
+      if (window.__autoDrawAllActive) {
+        finishAutoDraw(true);
+      }
       return;
     }
     window.__aiPaused = false;
@@ -1019,6 +1077,46 @@
     });
   };
 
+  window.examExtractorQueueSuggestions = (items, options = {}) => {
+    const label = options.label || 'Suggestions';
+    const normalizedItems = Array.isArray(items)
+      ? items
+          .map((item) => ({
+            block_ids: Array.from(new Set(item.block_ids || [])).filter(Boolean),
+            question_number: item.question_number || '',
+            marks: item.marks || '',
+            qtype: item.qtype || 'question',
+            parent_number: item.parent_number || '',
+            header_label: item.header_label || '',
+            case_study_label: item.case_study_label || '',
+          }))
+          .filter((entry) => entry.block_ids.length)
+      : [];
+
+    if (!normalizedItems.length) {
+      toast(options.emptyMessage || 'No segments found to draw.', 'warning', 2600);
+      return false;
+    }
+
+    const autoRun = options.auto === true;
+    if (autoRun) {
+      window.__autoDrawAllActive = true;
+      window.__autoDrawAllSaved = 0;
+    } else {
+      window.__autoDrawAllActive = false;
+      window.__autoDrawAllSaved = 0;
+    }
+    window.__aiQueue = normalizedItems;
+    window.__aiTotal = normalizedItems.length;
+    window.__aiIndex = 0;
+    window.__aiSource = label;
+
+    toast(`${label}: ${window.__aiTotal} suggestion(s) ready`, 'success', 2200);
+    setLLMStatus(true, `${label}`);
+    processNextAIDraw();
+    return true;
+  };
+
   btnAIDraw?.addEventListener('click', async (e) => {
     const api = btnAIDraw.getAttribute('data-api');
     if (!api) return;
@@ -1037,6 +1135,7 @@
       try { data = await resp.json(); } catch (_) { data = null; }
       if (!data || !data.ok) throw new Error('AI draw failed');
       window.__aiQueue = Array.from(data.items || []);
+      notifyAIStrategy(data.strategy);
       window.__aiTotal = window.__aiQueue.length;
       window.__aiIndex = 0;
       hideSpinner();
@@ -1054,6 +1153,96 @@
       setLLMStatus(false, 'Error');
     } finally {
       btnAIDraw.disabled = false; btnAIDraw.textContent = 'Draw Blocks with AI';
+    }
+  });
+
+  btnAIAuto?.addEventListener('click', async () => {
+    const api = btnAIAuto.getAttribute('data-api') || btnAIDraw?.getAttribute('data-api');
+    if (!api || btnAIAuto.dataset.state === 'fetch' || btnAIAuto.dataset.state === 'run') return;
+    DBG('[AI DRAW AUTO] Clicked. Endpoint:', api);
+    setAutoDrawButtonState('fetch');
+    if (btnAIDraw) btnAIDraw.disabled = true;
+    showSpinner('Fetching AI suggestions...');
+    setLLMStatus(true, 'Fetching suggestions');
+    let autoStarted = false;
+    try {
+      const resp = await fetch(api, { credentials: 'same-origin' });
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => '');
+        DBG('[AI DRAW AUTO] HTTP error', resp.status, txt?.slice?.(0, 300));
+        throw new Error(`HTTP ${resp.status}`);
+      }
+      let data = null;
+      try { data = await resp.json(); } catch (_) { data = null; }
+      if (!data || !data.ok) throw new Error('AI draw failed');
+      window.__aiQueue = Array.from(data.items || []);
+      notifyAIStrategy(data.strategy);
+      window.__aiTotal = window.__aiQueue.length;
+      window.__aiIndex = 0;
+      hideSpinner();
+      if (!window.__aiTotal) {
+        finishAutoDraw(false, 'No suggestions to auto draw');
+        return;
+      }
+      autoStarted = true;
+      window.__autoDrawAllActive = true;
+      window.__autoDrawAllSaved = 0;
+      setAutoDrawButtonState('run');
+      setLLMStatus(true, 'Auto drawing');
+      toast(`Auto mode queued ${window.__aiTotal} suggestion(s)`, 'info', 2500);
+      processNextAIDraw();
+    } catch (err) {
+      hideSpinner();
+      DBG('AI auto draw error:', err);
+      toast('Failed to fetch AI block suggestions', 'error');
+      finishAutoDraw(false);
+    } finally {
+      if (!autoStarted && !window.__autoDrawAllActive) {
+        setAutoDrawButtonState('idle');
+        if (btnAIDraw) btnAIDraw.disabled = false;
+      }
+    }
+  });
+
+  btnGadzira?.addEventListener('click', async () => {
+    const api = btnGadzira.getAttribute('data-api');
+    if (!api) return;
+    if (!btnGadzira.dataset.originalLabel) {
+      btnGadzira.dataset.originalLabel = btnGadzira.textContent?.trim() || 'Gadzira';
+    }
+    btnGadzira.disabled = true;
+    btnGadzira.textContent = 'Running Gadzira...';
+    showSpinner('Running Gadzira heuristics...');
+    setLLMStatus(true, 'Gadzira');
+    try {
+      const resp = await fetch(api, { credentials: 'same-origin' });
+      if (!resp.ok) {
+        const txt = await resp.text().catch(() => '');
+        throw new Error(`HTTP ${resp.status}: ${txt.slice(0, 200)}`);
+      }
+      let data = null;
+      try { data = await resp.json(); } catch (_) { data = null; }
+      if (!data || !data.ok) throw new Error('Gadzira failed');
+      window.__aiQueue = Array.from(data.items || []);
+      notifyAIStrategy(data.strategy || 'gadzira');
+      window.__aiTotal = window.__aiQueue.length;
+      window.__aiIndex = 0;
+      hideSpinner();
+      if (!window.__aiTotal) {
+        toast('No Gadzira suggestions found', 'error');
+        setLLMStatus(false, 'Idle');
+        return;
+      }
+      toast(`Loaded ${window.__aiTotal} Gadzira suggestion(s)`, 'success');
+      processNextAIDraw();
+    } catch (err) {
+      hideSpinner();
+      toast('Failed to run Gadzira', 'error');
+      setLLMStatus(false, 'Error');
+      DBG('Gadzira error:', err);
+    } finally {
+      btnGadzira.disabled = false;
+      btnGadzira.textContent = btnGadzira.dataset.originalLabel || 'Gadzira';
     }
   });
 })();

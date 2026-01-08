@@ -31,6 +31,7 @@ from .utils.extractor import (
     paper_to_markdown,
     classify_blocks_with_markdown,
     delimit_rubric_sections,
+    gadzira_suggest_boxes,
 )
 
 def paper_view(request, paper_id):
@@ -286,8 +287,15 @@ def ai_draw_blocks(request, paper_id):
     Response: { ok: true, items: [ { block_ids:[], question_number:"", marks:"", qtype:"", has_table:bool, has_image:bool } ] }
     """
     paper = get_object_or_404(ExtractorPaper, id=paper_id)
-    items = suggest_boxes_for_paper(paper)
-    return JsonResponse({"ok": True, "items": items})
+    items, strategy = suggest_boxes_for_paper(paper)
+    return JsonResponse({"ok": True, "items": items, "strategy": strategy})
+
+
+def gadzira_draw_blocks(request, paper_id):
+    """Return suggestions driven purely by YAML heuristics."""
+    paper = get_object_or_404(ExtractorPaper, id=paper_id)
+    items, strategy = gadzira_suggest_boxes(paper)
+    return JsonResponse({"ok": True, "items": items, "strategy": strategy})
 
 @require_POST
 def delete_box(request, paper_id, box_id):

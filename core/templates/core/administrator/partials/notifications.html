@@ -1,0 +1,236 @@
+{# Partial: Workflow notifications filtered by qualification + status #}
+{% with notifications=dashboard_notifications|default:[] filters=dashboard_notification_filters|default:{} %}
+<style>
+  #assessment-notifications {
+    background: white;
+    border-radius: 16px;
+    border: 1px solid rgba(88, 6, 88, 0.1);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+  }
+
+  #assessment-notifications .notification-panel__header h5 {
+    margin: 0;
+    font-weight: 700;
+    color: #3a063a;
+  }
+
+  #assessment-notifications .notification-panel__filters {
+    gap: 0.75rem;
+  }
+
+  #assessment-notifications .notification-panel__filters select,
+  #assessment-notifications .notification-panel__filters input {
+    min-width: 140px;
+    border-radius: 999px;
+    border: 1px solid #d1c4e9;
+    padding: 0.35rem 0.85rem;
+    font-size: 0.85rem;
+  }
+
+  #assessment-notifications .notification-card {
+    border: 1px solid rgba(58, 6, 58, 0.08);
+    border-radius: 14px;
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+    transition: border-color 0.2s ease, transform 0.2s ease;
+  }
+
+  #assessment-notifications .notification-card:hover {
+    border-color: rgba(143, 102, 32, 0.3);
+    transform: translateY(-2px);
+  }
+
+  #assessment-notifications .badge-pill {
+    border-radius: 999px;
+    background: rgba(143, 102, 32, 0.1);
+    color: #8f6620;
+    font-size: 0.75rem;
+    padding: 0.2rem 0.65rem;
+  }
+
+  #assessment-notifications .status-pill {
+    border-radius: 999px;
+    padding: 0.25rem 0.85rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+
+  #assessment-notifications .status-submitted-to-moderator {
+    background: rgba(255, 193, 7, 0.15);
+    color: #ba7a04;
+  }
+
+  #assessment-notifications .status-submitted-to-qcto,
+  #assessment-notifications .status-submitted-to-etqa {
+    background: rgba(58, 6, 58, 0.15);
+    color: #3a063a;
+  }
+
+  #assessment-notifications .status-approved-by-moderator,
+  #assessment-notifications .status-approved-by-etqa {
+    background: rgba(25, 135, 84, 0.15);
+    color: #0f5132;
+  }
+
+  #assessment-notifications .status-returned-for-changes,
+  #assessment-notifications .status-rejected {
+    background: rgba(220, 53, 69, 0.12);
+    color: #842029;
+  }
+
+  #assessment-notifications .status-released-to-students {
+    background: rgba(13, 110, 253, 0.12);
+    color: #0a58ca;
+  }
+
+  #assessment-notifications .notification-meta {
+    font-size: 0.8rem;
+    color: #6c6c6c;
+  }
+
+  #assessment-notifications .notification-empty {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #777;
+  }
+</style>
+
+<section id="assessment-notifications">
+  <div
+    class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center notification-panel__header mb-3">
+    <div>
+      <h5>Workflow Notifications</h5>
+      <p class="text-muted small mb-0">Auto-scanned from the assessment workflow when papers are forwarded to your
+        dashboard.</p>
+    </div>
+    <div class="d-flex flex-wrap notification-panel__filters mt-3 mt-md-0">
+      <select class="form-select form-select-sm" data-filter="qualification">
+        <option value="{{ user.qualification.id }}" selected>{{ user.qualification.name }}</option>
+      </select>
+      <select class="form-select form-select-sm" data-filter="status">
+        <option value="">All statuses</option>
+        {% for status in filters.statuses %}
+        <option value="{{ status.value }}">{{ status.label }}</option>
+        {% endfor %}
+      </select>
+      <input type="search" placeholder="Search by paper, EISA, user..." class="form-control form-control-sm"
+        data-filter="search" />
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <span class="text-muted small">Showing <span data-visible-count>0</span> notification(s)</span>
+    <button type="button" class="btn btn-sm btn-outline-secondary" data-action="refresh-notifications">
+      <i class="fas fa-sync-alt me-1"></i>Refresh
+    </button>
+  </div>
+
+  <div class="notification-panel__list">
+    {% for note in notifications %}
+    <article class="notification-card" data-notification-card data-qualification="{{ note.qualification_id }}"
+      data-status="{{ note.status }}"
+      data-search="{{ note.paper }} {{ note.eisa_id }} {{ note.updated_by }} {{ note.status }}">
+      <div class="d-flex justify-content-between align-items-start flex-column flex-md-row gap-2">
+        <div class="flex-grow-1">
+          <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge-pill">{{ note.qualification }}</span>
+            {% if note.qualification_matches %}
+            <span class="badge bg-success-subtle text-success small">Matches your qualification</span>
+            {% endif %}
+          </div>
+          <h6 class="mb-1">{{ note.paper|default:"Untitled assessment" }}</h6>
+          <p class="notification-meta mb-1">
+            Forwarded by <strong>{{ note.updated_by|default:"System" }}</strong>
+            {% if note.updated_by_role %}
+            <span class="text-muted">({{ note.updated_by_role }})</span>
+            {% endif %}
+          </p>
+          <p class="notification-meta mb-2">
+            Assigned user: <strong>{{ note.recipient_name }}</strong> &middot;
+            <time datetime="{{ note.timestamp_iso }}">{{ note.timestamp|date:"M j, Y \\at H:i" }}</time>
+          </p>
+          <p class="text-muted small mb-0">{{ note.message }}</p>
+        </div>
+        <div class="text-md-end">
+          <div class="status-pill status-{{ note.status_slug }}">{{ note.status_display|default:note.status }}</div>
+          <small class="text-muted d-block mt-2">{{ note.eisa_id }}</small>
+        </div>
+      </div>
+    </article>
+    {% empty %}
+    <div class="notification-empty" data-empty-state>
+      <p>No workflow notifications available for your profile yet. You will be notified as soon as a paper is forwarded
+        to your dashboard.</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if notifications %}
+  <div class="notification-empty d-none" data-empty-state>
+    <p>No notifications match the selected filters.</p>
+  </div>
+  {% endif %}
+</section>
+
+<script>
+  (function () {
+    const panel = document.getElementById('assessment-notifications');
+    if (!panel) return;
+
+    const cards = Array.from(panel.querySelectorAll('[data-notification-card]'));
+    const qualificationFilter = panel.querySelector('[data-filter="qualification"]');
+    const statusFilter = panel.querySelector('[data-filter="status"]');
+    const searchFilter = panel.querySelector('[data-filter="search"]');
+    const counter = panel.querySelector('[data-visible_count]');
+    const emptyBlocks = panel.querySelectorAll('[data-empty-state]');
+    const refreshBtn = panel.querySelector('[data-action="refresh-notifications"]');
+
+    function normalize(value) {
+      return (value || '').toString().trim().toLowerCase();
+    }
+
+    function applyFilters() {
+      const qualificationValue = normalize(qualificationFilter && qualificationFilter.value);
+      const statusValue = normalize(statusFilter && statusFilter.value);
+      const searchValue = normalize(searchFilter && searchFilter.value);
+
+      let visibleCount = 0;
+
+      cards.forEach(card => {
+        const cardQualification = normalize(card.dataset.qualification);
+        const cardStatus = normalize(card.dataset.status);
+        const cardSearch = normalize(card.dataset.search);
+
+        const matchesQualification = !qualificationValue || qualificationValue === cardQualification;
+        const matchesStatus = !statusValue || statusValue === cardStatus;
+        const matchesSearch = !searchValue || cardSearch.includes(searchValue);
+
+        const isVisible = matchesQualification && matchesStatus && matchesSearch;
+        card.style.display = isVisible ? '' : 'none';
+        if (isVisible) visibleCount += 1;
+      });
+
+      if (counter) {
+        counter.textContent = visibleCount;
+      }
+
+      emptyBlocks.forEach(block => {
+        block.classList.toggle('d-none', visibleCount !== 0);
+      });
+    }
+
+    [qualificationFilter, statusFilter, searchFilter].forEach(el => {
+      if (!el) return;
+      const eventName = el.tagName === 'SELECT' ? 'change' : 'input';
+      el.addEventListener(eventName, applyFilters);
+    });
+
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => window.location.reload());
+    }
+
+    applyFilters();
+  })();
+</script>
+{% endwith %}

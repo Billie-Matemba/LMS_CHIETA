@@ -3,17 +3,24 @@
   {% if kind == 'pagebreak' %}
     <hr class="my-4 page-break">
   {% else %}
-    <div class="mb-3">
-      {% if node.text %}<p>{{ node.text }}</p>{% endif %}
+    <div class="mb-3 block"
+         data-id="{{ node.id|default_if_none:'' }}"
+         data-type="{{ node.node_type|default_if_none:'' }}"
+         data-qn="{{ node.number|default_if_none:'' }}"
+         data-marks="{{ node.marks|default_if_none:'' }}"
+         data-text="{{ node.text|default_if_none:''|escape }}">
+      {% if node.text %}<p class="block-text">{{ node.text }}</p>{% endif %}
       {% if node.content %}
         {% for item in node.content %}
           {{ item|render_block }}
         {% endfor %}
       {% endif %}
       {% if node.children %}
-        {% for child in node.children %}
-          {% include 'core/administrator/_readonly_node.html' with node=child %}
-        {% endfor %}
+        <div class="children ms-4 mt-2">
+          {% for child in node.children %}
+            {% include 'core/administrator/_readonly_node.html' with node=child %}
+          {% endfor %}
+        </div>
       {% endif %}
     </div>
   {% endif %}

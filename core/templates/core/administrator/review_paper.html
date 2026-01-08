@@ -6,8 +6,8 @@
 <div class="container mt-5">
   <h2>Review The Extracted Paper</h2>
 
-<!-- Upload form (if no paper) -->
-{% if not paper %}
+  <!-- Upload form (if no paper) -->
+  {% if not paper %}
   <form method="post" enctype="multipart/form-data" class="mb-4">
     {% csrf_token %}
     <div class="row g-2 mb-3">
@@ -18,7 +18,7 @@
         <select name="qualification_id" class="form-control" required>
           <option value="">— Select Qualification —</option>
           {% for q in qualifications %}
-            <option value="{{ q.id }}">{{ q.name }} ({{ q.code }})</option>
+          <option value="{{ q.id }}">{{ q.name }} ({{ q.code }})</option>
           {% endfor %}
         </select>
       </div>
@@ -28,50 +28,52 @@
     </div>
     <button type="submit" class="btn btn-primary">Upload & Preview</button>
   </form>
-{% endif %}
+  {% endif %}
 
 
   <!-- Block editor with AI/classification buttons -->
   {% if paper and questions %}
-    <form id="blocks-form" method="post" action="{% url 'save_blocks' paper.pk %}">
-      {% csrf_token %}
-      <input type="hidden" name="nodes_json" id="nodes-json">
+  <form id="blocks-form" method="post" action="{% url 'save_blocks' paper.pk %}">
+    {% csrf_token %}
+    <input type="hidden" name="nodes_json" id="nodes-json">
 
-      <div id="top-controls" class="d-flex justify-content-between mb-3 sticky-top bg-white py-2 border-bottom">
-        <div class="btn-group">
-          <button type="button" id="ai-classify-btn" class="btn btn-info">Auto-Classify with AI</button>
-          <button type="button" id="merge-text-btn" class="btn btn-warning">Merge Text</button>
-          <button type="button" id="merge-blocks-btn" class="btn btn-secondary">Merge Blocks</button>
-        </div>
-        <button type="submit" class="btn btn-success">Save Manual Edits</button>
+    <div id="top-controls" class="d-flex justify-content-between mb-3 sticky-top bg-white py-2 border-bottom">
+      <div class="btn-group gap-2">
+        <a href="{% url 'admin_dashboard' %}" class="btn btn-secondary">← Back to Admin Dashboard</a>
+        <button type="button" id="ai-draw-btn" class="btn btn-primary">Draw Blocks with AI</button>
+        <button type="button" id="actual-numbering-btn" class="btn btn-success">Actual Numbering Automation</button>
+        <button type="button" id="auto-draw-btn" class="btn btn-info">Auto Draw All</button>
+
       </div>
+      <button type="submit" class="btn btn-success">Save</button>
+    </div>
 
-      <div class="blocks-container mt-3">
-        {% for q in questions %}
-          {% include "core/administrator/partials/question_block.html" with q=q %}
+    <div class="blocks-container mt-3">
+      {% for q in questions %}
+      {% include "core/administrator/partials/question_block.html" with q=q %}
 
-          {% if q.children %}
-            <div class="children ms-4 mt-3">
-              {% for child in q.children %}
-                {% include "core/administrator/partials/question_block.html" with q=child %}
-                {% if child.children %}
-                  <div class="children ms-4 mt-3">
-                    {% for grandchild in child.children %}
-                      {% include "core/administrator/partials/question_block.html" with q=grandchild %}
-                    {% endfor %}
-                  </div>
-                {% endif %}
-              {% endfor %}
-            </div>
-          {% endif %}
+      {% if q.children %}
+      <div class="children ms-4 mt-3">
+        {% for child in q.children %}
+        {% include "core/administrator/partials/question_block.html" with q=child %}
+        {% if child.children %}
+        <div class="children ms-4 mt-3">
+          {% for grandchild in child.children %}
+          {% include "core/administrator/partials/question_block.html" with q=grandchild %}
+          {% endfor %}
+        </div>
+        {% endif %}
         {% endfor %}
       </div>
-    </form>
-  {% else %}
-    <div class="alert alert-warning">
-        No questions found for this paper. 
-        Paper ID: {{ paper.id }}
+      {% endif %}
+      {% endfor %}
     </div>
+  </form>
+  {% else %}
+  <div class="alert alert-warning">
+    No questions found for this paper.
+    Paper ID: {{ paper.id }}
+  </div>
   {% endif %}
 
   <!-- Debug Info -->
@@ -80,24 +82,24 @@
     <p>Paper ID: {{ paper.pk }}</p>
     <p>Paper Name: {{ paper.name }}</p>
     <p>Questions count: {{ questions|length }}</p>
-    <p>Questions object type: 
-  {% if questions %}
-    {% if questions|length > 0 %}List with {{ questions|length }} items{% else %}Empty list{% endif %}
-  {% else %}
-    None
-  {% endif %}
-</p>
-    
+    <p>Questions object type:
+      {% if questions %}
+      {% if questions|length > 0 %}List with {{ questions|length }} items{% else %}Empty list{% endif %}
+      {% else %}
+      None
+      {% endif %}
+    </p>
+
     {% if questions %}
-      <ul>
+    <ul>
       {% for q in questions %}
-        <li>Q{{ q.number }}: {{ q.type }} - {{ q.marks }} marks 
-          (Content items: {{ q.content|length }})
-        </li>
+      <li>Q{{ q.number }}: {{ q.type }} - {{ q.marks }} marks
+        (Content items: {{ q.content|length }})
+      </li>
       {% endfor %}
-      </ul>
+    </ul>
     {% else %}
-      <p><strong>No questions found!</strong></p>
+    <p><strong>No questions found!</strong></p>
     {% endif %}
   </div>
 </div>
@@ -105,188 +107,479 @@
 
 {% block extra_js %}
 <script>
-function getCookie(name) {
-  let cookieValue = null;
-  if (document.cookie && document.cookie !== "") {
-    const cookies = document.cookie.split(";").map(c => c.trim());
-    for (const cookie of cookies) {
-      if (cookie.startsWith(name + "=")) {
-        cookieValue = decodeURIComponent(cookie.slice(name.length + 1));
-        break;
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+      const cookies = document.cookie.split(";").map(c => c.trim());
+      for (const cookie of cookies) {
+        if (cookie.startsWith(name + "=")) {
+          cookieValue = decodeURIComponent(cookie.slice(name.length + 1));
+          break;
+        }
       }
     }
-  }
-  return cookieValue;
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  const blocks = Array.from(document.querySelectorAll('.block'));
-  const mapByQn = {};
-  const parents = {};
-  const childrenCount = {};
-
-  // Map question numbers to DOM blocks
-  blocks.forEach(b => {
-    const qn = b.dataset.qn;
-    if (qn) mapByQn[qn] = b;
-  });
-
-  // Build parent-child structure
-  blocks.forEach(b => {
-    if (b.dataset.type !== 'question') return;
-    const parts = (b.dataset.qn || "").split('.');
-    if (parts.length < 2) return;
-
-    const parentKey = parts.slice(0, -1).join('.');
-    const parentEl = mapByQn[parentKey];
-    if (!parentEl) return;
-
-    parents[b.dataset.id] = parentEl.dataset.id;
-    childrenCount[parentEl.dataset.id] = (childrenCount[parentEl.dataset.id] || 0) + 1;
-
-    let wrap = parentEl.querySelector('.children');
-    if (!wrap) {
-      wrap = document.createElement('div');
-      wrap.className = 'children ms-4 mt-2';
-      parentEl.appendChild(wrap);
-    }
-
-    wrap.appendChild(b);
-  });
-
-  // Add "Parent of X" and "Child of Y" badges
-  blocks.forEach(b => {
-    const id = b.dataset.id;
-    const header = b.querySelector('.d-flex') || b;
-    let badge = null;
-
-    if (childrenCount[id]) {
-      badge = document.createElement('span');
-      badge.textContent = `Parent of ${childrenCount[id]}`;
-      badge.className = 'badge bg-primary text-white ms-2';
-    } else if (parents[id]) {
-      const pEl = document.querySelector(`.block[data-id="${parents[id]}"]`);
-      const pQn = pEl?.dataset.qn || '';
-      badge = document.createElement('span');
-      badge.textContent = `Child of ${pQn}`;
-      badge.className = 'badge bg-secondary text-white ms-2';
-    }
-
-    if (badge) header.appendChild(badge);
-  });
-
-  // Serialize all blocks on form submit
-  const form = document.getElementById('blocks-form');
-  if (form) {
-    form.addEventListener('submit', () => {
-      const blocksData = Array.from(document.querySelectorAll('.block')).map(b => {
-        const type = b.dataset.type || '';
-        const id = b.dataset.id;
-        const text = b.querySelector('.block-text')?.value?.trim()
-                  || b.querySelector('.block-text')?.textContent?.trim()
-                  || '';
-
-        const content = Array.from(b.querySelectorAll('.block-content')).map(el => {
-          // Check for table inside block-content
-          const table = el.querySelector('table');
-          if (table) {
-            const rows = Array.from(table.querySelectorAll('tr')).map(row =>
-              Array.from(row.querySelectorAll('td')).map(cell => cell.innerText.trim())
-            );
-            return { type: 'table', rows };
-          }
-          
-          // Check for image inside block-content
-          const img = el.querySelector('img');
-          if (img) {
-            return { type: 'figure', images: [img.src.split('/').pop()] };
-          }
-          
-          // Other content types
-          if (el.closest('.border.bg-light')) {
-            return { type: 'case_study', text: el.innerText.trim() };
-          }
-          return { type: 'question_text', text: el.innerText.trim() };
-        });
-
-        return {
-          id,
-          number: b.dataset.qn || '',
-          type,
-          marks: b.dataset.marks || '',
-          parent_id: parents[id] || null,
-          text,
-          content,
-          ...(type === 'figure' ? { data_uri: b.querySelector('img')?.src || '' } : {})
-        };
-      });
-
-      const outputField = document.getElementById('nodes-json');
-      if (outputField) {
-        outputField.value = JSON.stringify(blocksData);
-      }
-    });
+    return cookieValue;
   }
 
-  // Optional: handle delete-block buttons
-  document.querySelectorAll('.delete-block-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      const block = btn.closest('.block');
-      const hasChildren = block.querySelector('.children');
-      if (hasChildren) {
-        const confirmed = confirm('This block has child questions. Delete all?');
-        if (!confirmed) return;
-        hasChildren.remove();
+  /* ============= HELPER FUNCTIONS ============= */
+
+  const QUESTION_LIKE_TYPES = new Set([
+    "question",
+    "constructed_response",
+    "multiple_choice",
+    "true_false",
+    "matching",
+    "calculation",
+    "short_response",
+    "long_response",
+    "data_interpretation",
+    "procedure_sop",
+    "diagram_labeling"
+  ]);
+
+  function isQuestionLikeType(t) {
+    const x = (t || "").toLowerCase().trim();
+    if (!x) return false;
+    if (x === "question") return true;
+    if (QUESTION_LIKE_TYPES.has(x)) return true;
+    return x.includes("question");
+  }
+
+  function isCaseStudyText(text) {
+    const t = (text || "").toLowerCase();
+    return /\bcase\s*study\b|\bscenario\b|\bbackground\b|\bread\s+the\s+following\b/.test(t);
+  }
+
+  function getBlockText(b) {
+    return b.querySelector('.block-text')?.value?.trim()
+      || b.querySelector('.block-text')?.textContent?.trim()
+      || '';
+  }
+
+  function getBlockQn(b) {
+    return (b.dataset.qn || "").trim();
+  }
+
+  function pickBestParentCandidate(list) {
+    if (!Array.isArray(list) || list.length === 0) return null;
+    return list.find(el => isQuestionLikeType(el.dataset.type)) || list[0];
+  }
+
+  /* ============= ACTUAL NUMBERING AUTOMATION ============= */
+
+  function extractNumberFromText(text) {
+    if (!text) return null;
+    const trimmed = text.trim();
+    const match = trimmed.match(/^(\d+(?:\.\d+)*)\s*[:\)\-\.\s]/);
+    if (match && match[1]) {
+      return match[1].trim();
+    }
+    return null;
+  }
+
+  function normalizeNumbering(num) {
+    if (!num) return null;
+    const parts = num.split('.');
+
+    if (parts.length === 2) {
+      const [major, minor] = parts;
+      if (minor.length >= 2) {
+        const secondPart = minor.slice(0, -1);
+        const thirdPart = minor.slice(-1);
+
+        if (secondPart && thirdPart && /^\d+$/.test(secondPart) && /^\d+$/.test(thirdPart)) {
+          console.log(`  Normalized: ${num} → ${major}.${secondPart}.${thirdPart}`);
+          return `${major}.${secondPart}.${thirdPart}`;
+        }
       }
-      block.remove();
-    });
-  });
+    }
+    return num;
+  }
 
-  // Auto-Classify with AI button
-  document.getElementById('ai-classify-btn').addEventListener('click', () => {
-    const blocks = Array.from(document.querySelectorAll('.block')).map(b => {
-      return {
-        id: b.dataset.id,
-        text: b.querySelector('.block-text')?.value?.trim() || b.querySelector('.block-text')?.textContent?.trim() || '',
-        type: b.dataset.type || 'paragraph'
-      };
-    });
+  function getParentNumber(num) {
+    if (!num) return null;
+    const parts = num.split('.');
+    if (parts.length <= 1) return null;
+    return parts.slice(0, -1).join('.');
+  }
 
-    const paperPk = window.location.pathname.match(/\/review-paper\/(\d+)\//)?.[1];
-    if (!paperPk) {
-      alert("❌ Error: paper ID not found in URL.");
+  function runActualNumberingAutomation() {
+    console.log("\n🔍 Starting Actual Numbering Automation...\n");
+
+    const allBlocks = Array.from(document.querySelectorAll('.block'));
+
+    if (allBlocks.length === 0) {
+      alert("❌ No blocks found!");
       return;
     }
 
-    fetch(`/administrator/review-paper/${paperPk}/classify/`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-CSRFToken": getCookie("csrftoken")
-      },
-      body: JSON.stringify({ blocks })
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.error) throw new Error(data.error);
-      const types = data.types;
-      if (!Array.isArray(types)) throw new Error("Response format invalid");
+    const numbersByBlockId = {};
+    const blocksByNumber = {};
 
-      // Update DOM with new types
-      document.querySelectorAll('.block').forEach((b, i) => {
-        b.dataset.type = types[i] || 'paragraph';
-        const badge = b.querySelector('.type-badge');
-        if (badge) badge.textContent = types[i];
-      });
+    allBlocks.forEach(b => {
+      const blockId = b.dataset.id;
+      const blockText = getBlockText(b);
+      let extractedNum = extractNumberFromText(blockText);
 
-      alert("✅ Classification updated.");
-    })
-    .catch(err => {
-      console.error(err);
-      alert("❌ Classification failed.");
+      if (!extractedNum) {
+        console.log(`  Block ${blockId}: No number found in text`);
+        numbersByBlockId[blockId] = null;
+        return;
+      }
+
+      const normalized = normalizeNumbering(extractedNum);
+      numbersByBlockId[blockId] = normalized;
+
+      if (!blocksByNumber[normalized]) {
+        blocksByNumber[normalized] = [];
+      }
+      blocksByNumber[normalized].push(b);
+
+      console.log(`  Block ${blockId}: "${extractedNum}" → "${normalized}"`);
     });
+
+    console.log("\nNumbers found:", numbersByBlockId);
+    console.log("Blocks by number:", Object.keys(blocksByNumber));
+
+    const parents = {};
+    const childrenCount = {};
+    let nestsCount = 0;
+
+    Object.entries(numbersByBlockId).forEach(([blockId, num]) => {
+      if (!num) return;
+
+      const parentNum = getParentNumber(num);
+      if (!parentNum) {
+        console.log(`  ${num} (${blockId}): Top-level, no parent`);
+        return;
+      }
+
+      const parentBlocks = blocksByNumber[parentNum];
+      if (!parentBlocks || parentBlocks.length === 0) {
+        console.warn(`  ❌ ${num} (${blockId}): Parent "${parentNum}" not found!`);
+        return;
+      }
+
+      const parentBlock = parentBlocks.find(p => isQuestionLikeType(p.dataset.type)) || parentBlocks[0];
+
+      if (parentBlock.dataset.id === blockId) {
+        console.warn(`  ⚠️ ${num}: Self-nesting detected, skipped`);
+        return;
+      }
+
+      parents[blockId] = parentBlock.dataset.id;
+      childrenCount[parentBlock.dataset.id] = (childrenCount[parentBlock.dataset.id] || 0) + 1;
+
+      console.log(`  ✓ ${num} → parent ${parentNum}`);
+    });
+
+    // Remove all current nesting first
+    allBlocks.forEach(b => {
+      const wrapper = b.querySelector(':scope > .children');
+      if (wrapper) {
+        while (wrapper.firstChild) {
+          document.body.appendChild(wrapper.firstChild);
+        }
+        wrapper.remove();
+      }
+    });
+
+    const blocksAfterCleanup = Array.from(document.querySelectorAll('.block'));
+
+    blocksAfterCleanup.forEach(b => {
+      const blockId = b.dataset.id;
+      const parentBlockId = parents[blockId];
+
+      if (!parentBlockId) return;
+
+      const parentBlock = document.querySelector(`.block[data-id="${parentBlockId}"]`);
+      if (!parentBlock) {
+        console.warn(`  ❌ Parent block ${parentBlockId} not in DOM`);
+        return;
+      }
+
+      let wrapper = parentBlock.querySelector(':scope > .children');
+      if (!wrapper) {
+        wrapper = document.createElement('div');
+        wrapper.className = 'children ms-4 mt-2';
+        parentBlock.appendChild(wrapper);
+      }
+
+      wrapper.appendChild(b);
+      nestsCount++;
+    });
+
+    console.log(`\n✅ Nesting complete: ${nestsCount} blocks reorganized`);
+
+    const blocksNow = Array.from(document.querySelectorAll('.block'));
+    blocksNow.forEach(b => {
+      const id = b.dataset.id;
+      const num = numbersByBlockId[id];
+      const header = b.querySelector('.d-flex') || b;
+
+      header.querySelectorAll('.parent-child-badge').forEach(x => x.remove());
+
+      let badge = null;
+
+      if (childrenCount[id]) {
+        badge = document.createElement('span');
+        badge.textContent = `Parent of ${childrenCount[id]} (num: ${num})`;
+        badge.className = 'parent-child-badge badge bg-success text-white ms-2';
+      } else if (parents[id]) {
+        const parentBlock = document.querySelector(`.block[data-id="${parents[id]}"]`);
+        const parentNum = numbersByBlockId[parents[id]] || '?';
+        badge = document.createElement('span');
+        badge.textContent = `Child of ${parentNum} (num: ${num})`;
+        badge.className = 'parent-child-badge badge bg-info text-white ms-2';
+      } else if (num) {
+        badge = document.createElement('span');
+        badge.textContent = `Top-level (num: ${num})`;
+        badge.className = 'parent-child-badge badge bg-secondary text-white ms-2';
+      }
+
+      if (badge) header.appendChild(badge);
+    });
+
+    alert(`✅ Actual numbering automation complete!\n\n${nestsCount} blocks reorganized based on text numbering.`);
+  }
+
+  // Main initialization - runs once DOM is ready
+  document.addEventListener('DOMContentLoaded', () => {
+    console.log("🔧 Initializing paper review page...");
+
+    // Attach button listener FIRST
+    const actualNumberingBtn = document.getElementById('actual-numbering-btn');
+    if (actualNumberingBtn) {
+      console.log("✓ Actual Numbering button found, attaching listener");
+      actualNumberingBtn.addEventListener('click', runActualNumberingAutomation);
+    } else {
+      console.warn("⚠️ Actual Numbering button NOT found in DOM");
+    }
+
+    // AI Draw button
+    const aiDrawBtn = document.getElementById('ai-draw-btn');
+    if (aiDrawBtn) {
+      console.log("✓ Draw Blocks with AI button found");
+      aiDrawBtn.addEventListener('click', () => {
+        alert('AI Draw functionality coming soon...');
+      });
+    }
+
+    // Auto Draw button
+    const autoDrawBtn = document.getElementById('auto-draw-btn');
+    if (autoDrawBtn) {
+      console.log("✓ Auto Draw All button found");
+      autoDrawBtn.addEventListener('click', () => {
+        alert('Auto Draw functionality coming soon...');
+      });
+    }
+
+    // Rest of initialization...
+    const allBlocks = Array.from(document.querySelectorAll('.block'));
+    const mapByQn = {};
+    const parents = {};
+    const childrenCount = {};
+
+    allBlocks.forEach(b => {
+      const qn = getBlockQn(b);
+      if (!qn) return;
+      if (!mapByQn[qn]) mapByQn[qn] = [];
+      mapByQn[qn].push(b);
+      console.log(`Block ${b.dataset.id}: QN="${qn}", Type="${b.dataset.type}"`);
+    });
+
+    console.log("Full QN Map:", mapByQn);
+
+    allBlocks.forEach(b => {
+      const qn = getBlockQn(b);
+      if (!qn) return;
+
+      if (!isQuestionLikeType(b.dataset.type)) {
+        console.log(`Skipping ${qn}: type="${b.dataset.type}" is not question-like`);
+        return;
+      }
+
+      const parts = qn.split('.');
+      if (parts.length < 2) {
+        console.log(`Skipping ${qn}: no parent (parts.length=${parts.length})`);
+        return;
+      }
+
+      const parentKey = parts.slice(0, -1).join('.');
+      const parentCandidates = mapByQn[parentKey];
+
+      console.log(`${qn}: looking for parent "${parentKey}"`, parentCandidates ? `Found ${parentCandidates.length}` : 'NOT FOUND');
+
+      const parentEl = pickBestParentCandidate(parentCandidates);
+      if (!parentEl) {
+        console.warn(`❌ ${qn}: No parent found for "${parentKey}". Parent might be non-question-like type.`);
+        return;
+      }
+
+      if (parentEl === b) {
+        console.warn(`⚠️ ${qn}: Attempted self-nesting, skipped`);
+        return;
+      }
+
+      parents[b.dataset.id] = parentEl.dataset.id;
+      childrenCount[parentEl.dataset.id] = (childrenCount[parentEl.dataset.id] || 0) + 1;
+
+      let wrap = parentEl.querySelector(':scope > .children');
+      if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.className = 'children ms-4 mt-2';
+        parentEl.appendChild(wrap);
+      }
+      wrap.appendChild(b);
+      console.log(`✓ ${qn} nested under ${parentKey}`);
+    });
+
+    /* BADGES */
+    const blocksNow = Array.from(document.querySelectorAll('.block'));
+    blocksNow.forEach(b => {
+      const id = b.dataset.id;
+      const header = b.querySelector('.d-flex') || b;
+
+      header.querySelectorAll('.parent-child-badge').forEach(x => x.remove());
+
+      let badge = null;
+
+      if (childrenCount[id]) {
+        badge = document.createElement('span');
+        badge.textContent = `Parent of ${childrenCount[id]}`;
+        badge.className = 'parent-child-badge badge bg-primary text-white ms-2';
+      } else if (parents[id]) {
+        const pEl = document.querySelector(`.block[data-id="${parents[id]}"]`);
+        const pQn = pEl?.dataset.qn || '';
+        badge = document.createElement('span');
+        badge.textContent = `Child of ${pQn}`;
+        badge.className = 'parent-child-badge badge bg-secondary text-white ms-2';
+      }
+
+      if (badge) header.appendChild(badge);
+    });
+
+    /* SERIALIZE */
+    const form = document.getElementById('blocks-form');
+    if (form) {
+      form.addEventListener('submit', () => {
+        const blocksData = Array.from(document.querySelectorAll('.block')).map(b => {
+          const id = b.dataset.id;
+          const type = (b.dataset.type || '').trim();
+          const text = getBlockText(b);
+
+          const content = Array.from(b.querySelectorAll('.block-content')).map(el => {
+            const rawText = (el.innerText || "").trim();
+
+            const table = el.querySelector('table');
+            if (table) {
+              const rows = Array.from(table.querySelectorAll('tr')).map(row =>
+                Array.from(row.querySelectorAll('th,td')).map(cell => (cell.innerText || "").trim())
+              );
+              return { type: 'table', rows };
+            }
+
+            const img = el.querySelector('img');
+            if (img) {
+              return { type: 'figure', images: [img.src.split('/').pop()], data_uri: img.src };
+            }
+
+            if ((b.dataset.type || "").toLowerCase() === "case_study" || isCaseStudyText(rawText) || el.closest('.case-study')) {
+              return { type: 'case_study', text: rawText };
+            }
+
+            return { type: 'question_text', text: rawText };
+          });
+
+          return {
+            id,
+            number: getBlockQn(b),
+            type,
+            marks: b.dataset.marks || '',
+            parent_id: parents[id] || null,
+            text,
+            content
+          };
+        });
+
+        const outputField = document.getElementById('nodes-json');
+        if (outputField) outputField.value = JSON.stringify(blocksData);
+      });
+    }
+
+    /* DELETE */
+    document.querySelectorAll('.delete-block-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const block = btn.closest('.block');
+        const hasChildren = block?.querySelector('.children');
+        if (hasChildren && hasChildren.querySelector('.block')) {
+          const confirmed = confirm('This block has child questions. Delete all children too?');
+          if (!confirmed) return;
+        }
+        block?.remove();
+      });
+    });
+
+    /* AI CLASSIFY */
+    const aiBtn = document.getElementById('ai-classify-btn');
+    if (aiBtn) {
+      aiBtn.addEventListener('click', () => {
+        const payloadBlocks = Array.from(document.querySelectorAll('.block')).map(b => ({
+          id: b.dataset.id,
+          qn: getBlockQn(b),
+          text: getBlockText(b),
+          type: b.dataset.type || 'paragraph'
+        }));
+
+        const paperPk = window.location.pathname.match(/\/review-paper\/(\d+)\//)?.[1];
+        if (!paperPk) {
+          alert("❌ Error: paper ID not found in URL.");
+          return;
+        }
+
+        fetch(`/administrator/review-paper/${paperPk}/classify/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken")
+          },
+          body: JSON.stringify({ blocks: payloadBlocks })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) throw new Error(data.error);
+
+            let typesById = {};
+
+            if (data.typesById && typeof data.typesById === "object") {
+              typesById = data.typesById;
+            } else if (Array.isArray(data.types) && data.types.length && typeof data.types[0] === "object") {
+              data.types.forEach(x => { if (x?.id) typesById[x.id] = x.type; });
+            } else if (Array.isArray(data.types)) {
+              console.warn("⚠️ classify endpoint returned array; applying by DOM order (less safe).");
+              const blocks = Array.from(document.querySelectorAll('.block'));
+              blocks.forEach((b, i) => { typesById[b.dataset.id] = data.types[i]; });
+            } else {
+              throw new Error("Response format invalid");
+            }
+
+            document.querySelectorAll('.block').forEach(b => {
+              const newType = typesById[b.dataset.id];
+              if (!newType) return;
+              b.dataset.type = newType;
+
+              const badge = b.querySelector('.type-badge');
+              if (badge) badge.textContent = newType;
+            });
+
+            alert("✅ Classification updated.");
+          })
+          .catch(err => {
+            console.error(err);
+            alert("❌ Classification failed: " + err.message);
+          });
+      });
+    }
   });
-});
 </script>
 {% endblock %}
-
