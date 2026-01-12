@@ -1,21 +1,64 @@
 
 
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.http import JsonResponse, HttpResponseBadRequest
 from django.views.decorators.http import require_POST
 from django.db.models import Max
 from django.urls import reverse
+from django.db import transaction
+from lxml import etree
 import json
 import re
-from django.shortcuts import render, redirect, get_object_or_404
-from django.db import transaction
-from core.models import ExtractorPaper, ExtractorBlock, ExtractorBlockImage
-from utils.extract_docx import extract_blocks_from_docx
 
-from core.models import ExtractorPaper, ExtractorBlock, ExtractorUserBox, ExtractorTestPaper, ExtractorTestItem
+from core.models import (
+    ExtractorPaper,
+    ExtractorBlock,
+    ExtractorBlockImage,
+    ExtractorUserBox,
+    ExtractorTestPaper,
+    ExtractorTestItem,
+    Qualification,
+)
+from utils.extract_docx import extract_blocks_from_docx
+from utils.richtext import render_table_html, runs_to_html
+from utils.xml_font import NS as WORD_NS, extract_runs_from_xml
 from core import qualification_registry
-from core.models import Qualification
 # from core.qualification_registry import get_qualification_meta  # Not available, using alternative
+
+
+def _render_block_preview(block):
+    xml = block.xml or ""
+    if not xml:
+        return runs_to_html(None, block.text or "")
+    if block.block_type == "table":
+        try:
+            elem = etree.fromstring(xml.encode("utf-8"))
+        except Exception:
+            return block.text or ""
+        rows = []
+        cell_runs = []
+        for row_elem in elem.findall(".//w:tr", namespaces=WORD_NS):
+            texts_row = []
+            runs_row = []
+            for cell_elem in row_elem.findall("w:tc", namespaces=WORD_NS):
+                texts = [
+                    t.text or ""
+                    for t in cell_elem.findall(".//w:t", namespaces=WORD_NS)
+                    if t is not None and t.text
+                ]
+                texts_row.append("".join(texts).strip())
+                try:
+                    runs = extract_runs_from_xml(
+                        etree.tostring(cell_elem, encoding="utf-8")
+                    )
+                except Exception:
+                    runs = []
+                runs_row.append(runs)
+            if texts_row:
+                rows.append(texts_row)
+                cell_runs.append(runs_row)
+        return render_table_html(rows, cell_runs if any(cell_runs) else None)
+    return runs_to_html(extract_runs_from_xml(xml), block.text or "")
 
 # Import utility functions (assuming they exist in utils)
 from .utils.extractor import (
@@ -36,7 +79,13 @@ from .utils.extractor import (
 
 def paper_view(request, paper_id):
     paper = get_object_or_404(ExtractorPaper, id=paper_id)
-    blocks = paper.blocks.select_related().prefetch_related("images").order_by("order_index")
+    blocks = list(
+        paper.blocks.select_related()
+        .prefetch_related("images")
+        .order_by("order_index")
+    )
+    for block in blocks:
+        block.rendered_html = _render_block_preview(block)
     boxes = list(paper.user_boxes.order_by("-created_at"))
     
     # Heuristic: detect question starts by numbering or the word 'Question', capture marks

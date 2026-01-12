@@ -78,6 +78,16 @@
   margin: 0.2rem 0;
 }
 
+.paper-page .block-text {
+  line-height: 1.5;
+  word-break: break-word;
+}
+
+.paper-page .block-text .docx-run,
+.paper-page .block-table .docx-run {
+  white-space: pre-wrap;
+}
+
 .paper-page .block[data-type="rubric"] {
   background: #fff7ed;
   border-left: 3px solid #f59e0b;
@@ -417,4 +427,7 @@
     position: sticky;
     top: 4.5rem;
   }
+}
+.docx-paragraph {
+  display: block;
 }

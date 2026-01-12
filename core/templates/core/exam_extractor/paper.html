@@ -48,16 +48,16 @@
         <img src="{{ img.image.url }}" class="block-image" alt="image {{ forloop.counter }}" />
         {% empty %}
         <div class="block-text">
-          {{ b.text|linebreaksbr }}
+          {{ b.rendered_html|default:b.text|safe }}
         </div>
         {% endfor %}
         {% elif b.block_type == 'table' %}
         <div class="block-table">
-          {{ b.text|safe }}
+          {{ b.rendered_html|default:b.text|safe }}
         </div>
         {% else %}
         <div class="block-text">
-          {{ b.text|linebreaksbr }}
+          {{ b.rendered_html|default:b.text|safe }}
         </div>
         {% if images %}
         {% for img in images %}

@@ -27,6 +27,7 @@ Author: Blessing Mbalaka(2025‑08‑08)
 from __future__ import annotations
 
 import tempfile 
+import copy
 
 import base64, mimetypes
 from pathlib import Path
@@ -37,6 +38,8 @@ from xml.etree import ElementTree as ET
 
 from normalize_content import normalize_content_and_copy_media
 from utils_pro import copy_images_to_media_folder
+from utils.xml_font import extract_runs_from_xml
+from utils.richtext import runs_to_html, render_table_html
 
 
 # -----------------------------
@@ -419,6 +422,12 @@ class Heuristics:
                     else:
                         print(f"   Marks from question text: {marks}")
                     
+                    question_payload = {
+                        'type': 'question_text',
+                        'text': b.text,
+                    }
+                    if b.runs:
+                        question_payload['runs'] = copy.deepcopy(b.runs)
                     current = Node(
                         id=b.id, 
                         number=number, 
@@ -426,7 +435,7 @@ class Heuristics:
                         marks=marks,
                         parent_id=None, 
                         order=order,
-                        content=[{'type':'question_text','text': b.text}]
+                        content=[question_payload]
                     )
                     nodes.append(current)
                     order += 1
@@ -436,12 +445,16 @@ class Heuristics:
             payload: Dict[str, Any]
             if b.type == 'table':
                 payload = {'type':'table','rows': b.table}
+                if b.cell_runs:
+                    payload['cell_runs'] = copy.deepcopy(b.cell_runs)
             elif b.type == 'image':
                 payload = {'type':'figure','images': b.images, 'caption': b.text}
             elif b.type == 'pagebreak':
                 payload = {'type':'pagebreak'}
             else:
                 payload = {'type':'paragraph','text': b.text}
+                if b.runs:
+                    payload['runs'] = copy.deepcopy(b.runs)
 
             if current is None:
                 # preamble/rubric/instructions before first question
@@ -479,6 +492,8 @@ class Block:
     text: str = ''
     table: List[List[str]] = field(default_factory=list)
     images: List[str] = field(default_factory=list)  # filenames
+    runs: List[dict] = field(default_factory=list)
+    cell_runs: List[List[List[dict]]] = field(default_factory=list)
     
 @dataclass 
 class Node:
@@ -638,6 +653,13 @@ class DocxParser:
         # collapse multiple spaces (keep tabs/newlines intact)
         text = re.sub(r'[ \u00A0]+', ' ', text).strip()
 
+        try:
+            runs_payload = extract_runs_from_xml(
+                ET.tostring(para_elem, encoding="utf-8")
+            )
+        except Exception:
+            runs_payload = []
+
         # if no visible text but we do have captions, use them as a caption
         if not text and captions:
             text = ' '.join(dict.fromkeys(captions))
@@ -650,16 +672,19 @@ class DocxParser:
             id=block_id,
             type=block_type,
             text=text,
-            images=images
+            images=images,
+            runs=runs_payload
         )
 
         
     def _parse_table(self, table_elem) -> Optional[Block]:
         """Parse table element"""
         rows = []
+        cell_runs: list[list[list[dict]]] = []
         
         for row_elem in table_elem.findall('.//w:tr', NS):
             cells = []
+            row_styles: list[list[dict]] = []
             for cell_elem in row_elem.findall('.//w:tc', NS):
                 cell_text_parts = []
                 for text_elem in cell_elem.findall('.//w:t', NS):
@@ -667,8 +692,16 @@ class DocxParser:
                         cell_text_parts.append(text_elem.text)
                 cell_text = ''.join(cell_text_parts).strip()
                 cells.append(cell_text)
+                try:
+                    runs = extract_runs_from_xml(
+                        ET.tostring(cell_elem, encoding="utf-8")
+                    )
+                except Exception:
+                    runs = []
+                row_styles.append(runs)
             if cells:
                 rows.append(cells)
+                cell_runs.append(row_styles)
                 
         if not rows:
             return None
@@ -676,7 +709,8 @@ class DocxParser:
         return Block(
             id=str(uuid.uuid4()),
             type='table',
-            table=rows
+            table=rows,
+            cell_runs=cell_runs
         )
         
     def _extract_image(self, drawing_elem, docx_zip, image_rels) -> Optional[str]:
@@ -1081,18 +1115,12 @@ class Extractor:
             buf.write(f"<h3>{label}</h3>")
             for c in n.get('content', []):
                 t = c.get('type')
-                if t in ('question_text', 'paragraph'):
-                    buf.write(f"<p>{c.get('text','')}</p>")
+                if t in ('question_text', 'paragraph', 'text', 'instruction'):
+                    html = runs_to_html(c.get('runs'), c.get('text', ''))
+                    buf.write(f"<p>{html}</p>")
                 elif t == 'table':
                     rows = c.get('rows') or []
-                    buf.write("<table border='1' cellspacing='0' cellpadding='4'>")
-                    for row in rows:
-                        buf.write('<tr>')
-                        for cell in row:
-                            safe_cell = (cell or "").replace("\n", "<br/>")
-                            buf.write(f"<td>{safe_cell}</td>")
-                        buf.write('</tr>')
-                    buf.write('</table>')
+                    buf.write(render_table_html(rows, c.get('cell_runs')))
                 elif t == 'figure':
                     images = c.get('images') or []
                     caption = c.get('caption') or ''

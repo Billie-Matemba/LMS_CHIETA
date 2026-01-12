@@ -52,13 +52,17 @@ def normalize_content_and_copy_media(
             'type': block_type,
         }
         
-        if block_type in ('question_text', 'paragraph'):
+        if block_type in ('question_text', 'paragraph', 'text', 'instruction'):
             # Text blocks: preserve text
             normalized_block['text'] = block.get('text', '')
+            if block.get('runs'):
+                normalized_block['runs'] = block.get('runs')
         
         elif block_type == 'table':
             # Table blocks: preserve rows structure
             normalized_block['rows'] = block.get('rows', [])
+            if block.get('cell_runs'):
+                normalized_block['cell_runs'] = block.get('cell_runs')
         
         elif block_type == 'figure':
             # Figure blocks: images + caption

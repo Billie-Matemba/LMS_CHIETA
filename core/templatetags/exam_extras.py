@@ -1,8 +1,10 @@
 # core/templatetags/exam_extras.py
 from django import template
-from django.utils.safestring import mark_safe
-from django.utils.html import escape
 from django.conf import settings
+from django.utils.html import escape
+from django.utils.safestring import mark_safe
+
+from utils.richtext import render_table_html, runs_to_html
 
 register = template.Library()
 
@@ -61,6 +63,9 @@ def _render_table(item):
 
     rows = item.get("rows") or []
     rows = _normalize_rows(rows)
+    cell_runs = item.get("cell_runs")
+    if cell_runs:
+        return render_table_html(rows, cell_runs)
 
     if not rows:
         return "<div class='text-muted'><em>[Empty table]</em></div>"
@@ -174,12 +179,12 @@ def render_block(item):
     t = (item.get("type") or "").lower()
 
     if t in ("question_text", "text", "paragraph", "instruction"):
-        txt = item.get("text", "")
-        return mark_safe(f"<p>{escape(txt)}</p>") if txt else ""
+        html = runs_to_html(item.get("runs"), item.get("text", ""))
+        return mark_safe(f"<div class='docx-paragraph'>{html}</div>") if html else ""
 
     if t == "case_study":
-        txt = item.get("text", "")
-        return mark_safe(f"<div class='case-study'>{escape(txt)}</div>")
+        html = runs_to_html(item.get("runs"), item.get("text", ""))
+        return mark_safe(f"<div class='case-study docx-paragraph'>{html}</div>") if html else ""
 
     if t == "table":
         return mark_safe(_render_table(item))
@@ -191,4 +196,5 @@ def render_block(item):
         return mark_safe("<hr class='my-4 page-break'>")
 
     # Fallback for unknown types
-    return mark_safe(f"<p>{escape(str(item))}</p>")
+    html = runs_to_html(item.get("runs") if isinstance(item, dict) else None, item.get("text") if isinstance(item, dict) else str(item))
+    return mark_safe(f"<div class='docx-paragraph'>{html}</div>")

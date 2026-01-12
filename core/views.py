@@ -58,6 +58,11 @@ from .forms import StudentRegistrationForm
 from robustexamextractor import extract_docx, save_robust_extraction_to_db
 from utils_pro import populate_examnodes_from_structure_json, save_nodes_to_db
 from utils_pro import copy_images_to_media_folder
+from utils.richtext import (
+    strip_non_bold_from_blocks,
+    strip_non_bold_from_manifest_nodes,
+    summarize_text_from_blocks,
+)
 
 from .forms import (
     AssessmentCentreForm,
@@ -2427,6 +2432,62 @@ def assessor_randomized_snapshot(request, assessment_id):
                     can_forward_to_moderator = True
             else:
                 messages.error(request, "Please select a memo file to upload")
+            return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
+
+        if action == "strip_unbold":
+            if not paper:
+                messages.error(request, "No paper attached to this assessment.")
+                return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
+            nodes_qs = paper.nodes.order_by("order_index")
+            updated_nodes = 0
+            styled_nodes = 0
+            cleared_labels: list[str] = []
+            for node in nodes_qs:
+                content_payload = node.content if isinstance(node.content, list) else []
+                has_style_payload = any(
+                    isinstance(item, dict)
+                    and (
+                        bool(item.get("runs"))
+                        or bool(item.get("cell_runs"))
+                    )
+                    for item in content_payload
+                )
+                if has_style_payload:
+                    styled_nodes += 1
+                filtered = strip_non_bold_from_blocks(content_payload)
+                if filtered != content_payload:
+                    node.content = filtered
+                    node.text = summarize_text_from_blocks(filtered)
+                    node.save(update_fields=["content", "text"])
+                    updated_nodes += 1
+                    label = node.number or (node.order_index and f"Order {node.order_index}") or str(node.id)
+                    cleared_labels.append(label)
+            manifest = paper.structure_json if isinstance(paper.structure_json, dict) else {}
+            if manifest and isinstance(manifest.get("nodes"), list):
+                manifest["nodes"] = strip_non_bold_from_manifest_nodes(manifest["nodes"])
+                paper.structure_json = manifest
+                paper.save(update_fields=["structure_json"])
+            if updated_nodes:
+                example = ""
+                if cleared_labels:
+                    preview = ", ".join(cleared_labels[:5])
+                    if len(cleared_labels) > 5:
+                        preview += ", …"
+                    example = f" (e.g. {preview})"
+                messages.success(
+                    request,
+                    f"Cleared non-bold text from {updated_nodes} block(s){example}.",
+                )
+            elif styled_nodes == 0:
+                messages.info(
+                    request,
+                    "No blocks contained run-level styling data. Re-run the extractor on this paper to capture bold/colour metadata before stripping.",
+                )
+            else:
+                messages.info(
+                    request,
+                    "No bold styling data was available to strip.",
+                )
             return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
         
         if action in {"forward_etqa", "forward_qcto"}:

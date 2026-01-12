@@ -148,6 +148,21 @@
       margin-bottom: .5rem;
     }
 
+    .docx-paragraph {
+      display: block;
+      min-height: 1.2rem;
+      line-height: 1.45;
+    }
+
+    .docx-run {
+      white-space: pre-wrap;
+      display: inline;
+    }
+
+    .docx-cell .docx-run {
+      white-space: pre-wrap;
+    }
+
     .snapshot-node__meta {
       display: inline-flex;
       align-items: center;
@@ -385,6 +400,13 @@
         <div class="snapshot-actions">
           <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal"
             data-bs-target="#snapshotModal">View Saved Randomized Papers</button>
+          <form method="post" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="strip_unbold">
+            <button type="submit" class="btn btn-outline-danger btn-sm">
+              Clear Non-Bold Text
+            </button>
+          </form>
           <small class="text-muted text-end">Randomized papers are reconstructions generated from captured content
             blocks.</small>
           <label for="snapshot-switch" class="form-label mb-0">Jump to paper</label>
