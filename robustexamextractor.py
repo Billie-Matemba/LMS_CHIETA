@@ -1148,7 +1148,7 @@ def export_docx_from_manifest(manifest: Dict[str, Any], out_docx_path: str, medi
     """
     try:
         from docx import Document  # python-docx
-        from docx.shared import Inches
+        from docx.shared import Inches, RGBColor
     except Exception as e:
         warn(f"python-docx not available: {e}")
         return False
@@ -1159,17 +1159,78 @@ def export_docx_from_manifest(manifest: Dict[str, Any], out_docx_path: str, medi
     title = (manifest.get('metadata') or {}).get('paper_name') or manifest.get('source') or 'Reconstructed Paper'
     doc.add_heading(str(title), level=1)
 
-    def add_table(rows: List[List[str]]):
+    def _parse_rgb(color: str | None) -> tuple[int, int, int] | None:
+        if not color:
+            return None
+        hex_code = str(color).strip()
+        if not hex_code:
+            return None
+        if hex_code.startswith("#"):
+            hex_code = hex_code[1:]
+        if len(hex_code) == 3:
+            hex_code = "".join(ch * 2 for ch in hex_code)
+        if len(hex_code) not in {6, 8}:
+            return None
+        try:
+            r = int(hex_code[0:2], 16)
+            g = int(hex_code[2:4], 16)
+            b = int(hex_code[4:6], 16)
+            return r, g, b
+        except ValueError:
+            return None
+
+    def _write_runs(paragraph, runs: List[dict] | None, fallback_text: str = ""):
+        text_used = False
+        if runs:
+            for info in runs:
+                if not isinstance(info, dict):
+                    continue
+                text = str(info.get("text") or "")
+                if text == "":
+                    continue
+                segments = text.split("\n")
+                for seg_index, segment in enumerate(segments):
+                    if seg_index > 0:
+                        paragraph.add_run().add_break()
+                    if segment == "":
+                        continue
+                    run = paragraph.add_run(segment)
+                    if info.get("is_bold"):
+                        run.bold = True
+                    if info.get("is_italic"):
+                        run.italic = True
+                    if info.get("is_underline"):
+                        run.underline = True
+                    rgb = _parse_rgb(info.get("color"))
+                    if rgb:
+                        run.font.color.rgb = RGBColor(*rgb)
+                text_used = True
+        if not text_used and fallback_text:
+            for idx, piece in enumerate(str(fallback_text).split("\n")):
+                if idx > 0:
+                    paragraph.add_run().add_break()
+                if piece:
+                    paragraph.add_run(piece)
+
+    def add_table(rows: List[List[str]], cell_runs: List | None = None):
         if not rows:
             return
         cols = max(len(r) for r in rows)
         t = doc.add_table(rows=0, cols=cols)
         t.style = 'Table Grid'
-        for r in rows:
+        for row_index, r in enumerate(rows):
             row = t.add_row().cells
             for i in range(cols):
                 val = (r[i] if i < len(r) else '') or ''
-                row[i].text = str(val)
+                cell = row[i]
+                cell.text = ""
+                paragraph = cell.paragraphs[0]
+                runs_payload = None
+                if cell_runs and row_index < len(cell_runs):
+                    runs_row = cell_runs[row_index]
+                    if isinstance(runs_row, list) and i < len(runs_row):
+                        runs_payload = runs_row[i]
+                _write_runs(paragraph, runs_payload, val)
 
     for node in manifest.get('nodes', []):
         ntype = node.get('type')
@@ -1186,12 +1247,15 @@ def export_docx_from_manifest(manifest: Dict[str, Any], out_docx_path: str, medi
         # Content blocks
         for c in node.get('content', []):
             t = c.get('type')
-            if t in ('question_text','paragraph'):
+            if t in ('question_text','paragraph','instruction','text','case_study'):
                 txt = c.get('text') or ''
-                if txt.strip():
-                    doc.add_paragraph(txt)
+                runs = c.get('runs')
+                if not txt and not runs:
+                    continue
+                paragraph = doc.add_paragraph()
+                _write_runs(paragraph, runs, txt)
             elif t == 'table':
-                add_table(c.get('rows') or [])
+                add_table(c.get('rows') or [], c.get('cell_runs'))
             elif t == 'figure':
                 imgs = c.get('images') or []
                 for img in imgs:

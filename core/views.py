@@ -61,6 +61,10 @@ from utils_pro import copy_images_to_media_folder
 from utils.richtext import (
     strip_non_bold_from_blocks,
     strip_non_bold_from_manifest_nodes,
+    strip_color_from_blocks,
+    strip_color_from_manifest_nodes,
+    strip_color_from_blocks_html,
+    strip_color_from_manifest_nodes_html,
     summarize_text_from_blocks,
 )
 
@@ -2338,6 +2342,32 @@ def assessor_randomized_snapshot(request, assessment_id):
     if base_paper is None and paper:
         base_paper = getattr(paper, "base_paper", None)
 
+    source_tags = []
+    seen_sources = set()
+
+    def _add_source_tag(label: str, value: str | int | None):
+        if not value:
+            return
+        key = str(value)
+        if key in seen_sources:
+            return
+        seen_sources.add(key)
+        source_tags.append({"label": label, "value": value})
+
+    if isinstance(random_meta, dict):
+        if random_meta.get("base_paper_id"):
+            _add_source_tag("Base paper", random_meta["base_paper_id"])
+        if random_meta.get("previous_snapshot_paper_id"):
+            _add_source_tag("Previous snapshot", random_meta["previous_snapshot_paper_id"])
+        if random_meta.get("source_snapshot_id"):
+            _add_source_tag("Source snapshot", random_meta["source_snapshot_id"])
+    if base_paper_id:
+        _add_source_tag("Base paper", base_paper_id)
+    if paper and paper.parent_paper_id:
+        _add_source_tag("Parent paper", paper.parent_paper_id)
+    if getattr(base_paper, "id", None):
+        _add_source_tag("Resolved base", base_paper.id)
+
     module_name_meta = (
         (random_meta.get("module_name") if isinstance(random_meta, dict) else None)
         or getattr(assessment, "module_name", "")
@@ -2410,6 +2440,36 @@ def assessor_randomized_snapshot(request, assessment_id):
         action = (request.POST.get("action") or "").strip().lower()
         refresh = request.POST.get("refresh") == "1"
         
+        # Helper utilities for color-based stripping
+        def _runs_have_color(runs, target_colors):
+            if not runs:
+                return False
+            for run in runs:
+                if not isinstance(run, dict):
+                    continue
+                color = str(run.get("color") or "").strip().lstrip("#").upper()
+                if color and color[:6] in target_colors:
+                    return True
+            return False
+
+        def _content_has_color(blocks, target_colors):
+            if not isinstance(blocks, list):
+                return False
+            for item in blocks:
+                if not isinstance(item, dict):
+                    continue
+                if _runs_have_color(item.get("runs"), target_colors):
+                    return True
+                if (item.get("type") or "").lower() == "table":
+                    cell_runs = item.get("cell_runs") or []
+                    for row in cell_runs:
+                        if not isinstance(row, list):
+                            continue
+                        for cell in row:
+                            if _runs_have_color(cell, target_colors):
+                                return True
+            return False
+
         # NEW: Handle memo upload
         if action == "upload_memo":
             memo_file = request.FILES.get('memo_file')
@@ -2432,6 +2492,114 @@ def assessor_randomized_snapshot(request, assessment_id):
                     can_forward_to_moderator = True
             else:
                 messages.error(request, "Please select a memo file to upload")
+            return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
+
+        if action == "strip_red_text":
+            if not paper:
+                messages.error(request, "No paper attached to this assessment.")
+                return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
+
+            target_colors = {"FF0000"}
+
+            nodes_qs = paper.nodes.order_by("order_index")
+            updated_nodes = 0
+            color_nodes = 0
+            cleared_labels: list[str] = []
+            for node in nodes_qs:
+                content_payload = node.content if isinstance(node.content, list) else []
+                if _content_has_color(content_payload, target_colors):
+                    color_nodes += 1
+                    filtered = strip_color_from_blocks(content_payload, target_colors)
+                    node.content = filtered
+                    update_fields = ["content"]
+                    if (node.node_type or "").lower() != "cover_page":
+                        node.text = summarize_text_from_blocks(filtered)
+                        update_fields.append("text")
+                    node.save(update_fields=update_fields)
+                    updated_nodes += 1
+                    label = node.number or (node.order_index and f"Order {node.order_index}") or str(node.id)
+                    cleared_labels.append(label)
+
+            manifest = paper.structure_json if isinstance(paper.structure_json, dict) else {}
+            if manifest and isinstance(manifest.get("nodes"), list):
+                manifest["nodes"] = strip_color_from_manifest_nodes(manifest["nodes"], target_colors)
+                paper.structure_json = manifest
+                paper.save(update_fields=["structure_json"])
+
+            if updated_nodes:
+                preview = ""
+                if cleared_labels:
+                    sample = ", ".join(cleared_labels[:5])
+                    if len(cleared_labels) > 5:
+                        sample += ", …"
+                    preview = f" (e.g. {sample})"
+                messages.success(
+                    request,
+                    f"Removed red text from {updated_nodes} block(s){preview}.",
+                )
+            elif color_nodes == 0:
+                messages.info(
+                    request,
+                    "No stored runs were tagged as red. Re-run the extractor to capture color metadata before using this action.",
+                )
+            else:
+                messages.info(request, "No red text found to remove.")
+            return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
+
+        if action == "delete_answers":
+            if not paper:
+                messages.error(request, "No paper attached to this assessment.")
+                return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
+            target_colors = {"FF0000"}
+            nodes_qs = paper.nodes.order_by("order_index")
+            updated_nodes = 0
+            styled_nodes = 0
+            cleared_labels: list[str] = []
+            for node in nodes_qs:
+                content_payload = node.content if isinstance(node.content, list) else []
+                processed = strip_color_from_blocks(content_payload, target_colors)
+                processed_html, html_changed = strip_color_from_blocks_html(processed, target_colors)
+                changed_runs = processed != content_payload
+                changed = changed_runs or html_changed
+                if not changed:
+                    continue
+                styled_nodes += 1
+                node.content = processed_html
+                update_fields = ["content"]
+                if (node.node_type or "").lower() != "cover_page":
+                    node.text = summarize_text_from_blocks(processed_html)
+                    update_fields.append("text")
+                node.save(update_fields=update_fields)
+                updated_nodes += 1
+                label = node.number or (node.order_index and f"Order {node.order_index}") or str(node.id)
+                cleared_labels.append(label)
+
+            manifest = paper.structure_json if isinstance(paper.structure_json, dict) else {}
+            if manifest and isinstance(manifest.get("nodes"), list):
+                nodes_cleaned = strip_color_from_manifest_nodes(manifest["nodes"], target_colors)
+                nodes_cleaned = strip_color_from_manifest_nodes_html(nodes_cleaned, target_colors)
+                manifest["nodes"] = nodes_cleaned
+                paper.structure_json = manifest
+                paper.save(update_fields=["structure_json"])
+
+            if updated_nodes:
+                preview = ""
+                if cleared_labels:
+                    sample = ", ".join(cleared_labels[:5])
+                    if len(cleared_labels) > 5:
+                        sample += ", …"
+                    preview = f" (e.g. {sample})"
+                messages.success(
+                    request,
+                    f"Deleted red-tagged answers from {updated_nodes} block(s){preview}.",
+                )
+            elif styled_nodes == 0:
+                messages.info(
+                    request,
+                    "No blocks contained red-styled runs or HTML fragments. Re-run the extractor to capture color metadata before using this action.",
+                )
+            else:
+                messages.info(request, "No red highlighted answers found to delete.")
             return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
 
         if action == "strip_unbold":
@@ -2457,8 +2625,11 @@ def assessor_randomized_snapshot(request, assessment_id):
                 filtered = strip_non_bold_from_blocks(content_payload)
                 if filtered != content_payload:
                     node.content = filtered
-                    node.text = summarize_text_from_blocks(filtered)
-                    node.save(update_fields=["content", "text"])
+                    update_fields = ["content"]
+                    if (node.node_type or "").lower() != "cover_page":
+                        node.text = summarize_text_from_blocks(filtered)
+                        update_fields.append("text")
+                    node.save(update_fields=update_fields)
                     updated_nodes += 1
                     label = node.number or (node.order_index and f"Order {node.order_index}") or str(node.id)
                     cleared_labels.append(label)
@@ -3169,6 +3340,7 @@ def assessor_randomized_snapshot(request, assessment_id):
         "has_memo": has_memo,
         "memo_filename": assessment.memo_file.name if assessment.memo_file else None,
         "cover_box_content": cover_box_content,
+        "randomized_source_tags": source_tags,
     }
     return render(request, "core/assessor-developer/randomized_snapshot.html", context)
 

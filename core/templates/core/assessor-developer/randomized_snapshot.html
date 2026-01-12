@@ -116,6 +116,20 @@
     .snapshot-node__actions form {
       display: inline;
     }
+    .snapshot-source-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.5rem;
+    }
+    .snapshot-source-tag {
+      background: rgba(79, 70, 229, 0.1);
+      color: #312e81;
+      border-radius: 999px;
+      padding: 0.25rem 0.65rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
 
     .snapshot-node__image {
       max-width: 100%;
@@ -396,8 +410,8 @@
           {% endif %}
           {% endwith %}
           {% endif %}
-        </div>
-        <div class="snapshot-actions">
+      </div>
+      <div class="snapshot-actions">
           <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal"
             data-bs-target="#snapshotModal">View Saved Randomized Papers</button>
           <form method="post" class="d-inline">
@@ -405,6 +419,20 @@
             <input type="hidden" name="action" value="strip_unbold">
             <button type="submit" class="btn btn-outline-danger btn-sm">
               Clear Non-Bold Text
+            </button>
+          </form>
+          <form method="post" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="strip_red_text">
+            <button type="submit" class="btn btn-outline-warning btn-sm">
+              Remove Red Text
+            </button>
+          </form>
+          <form method="post" class="d-inline">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete_answers">
+            <button type="submit" class="btn btn-outline-primary btn-sm">
+              Delete Answers
             </button>
           </form>
           <small class="text-muted text-end">Randomized papers are reconstructions generated from captured content
@@ -501,15 +529,7 @@
             {% endif %}
           </dl>
         </div>
-        <div class="col-md-4">
-          <div class="bg-light rounded-3 p-3 h-100">
-            <div class="fw-semibold mb-2">Structure overview</div>
-            <div>Questions: <strong>{{ node_stats.questions }}</strong></div>
-            <div>Tables: <strong>{{ node_stats.tables }}</strong></div>
-            <div>Images: <strong>{{ node_stats.images }}</strong></div>
-            <div>Instructions: <strong>{{ node_stats.instructions }}</strong></div>
-          </div>
-        </div>
+        {# Structure overview hidden per request #}
       </div>
 
       <!-- NEW: Memo Upload Section -->
@@ -699,6 +719,13 @@
           <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         </div>
       </div>
+      {% if randomized_source_tags %}
+      <div class="snapshot-source-tags">
+        {% for tag in randomized_source_tags %}
+        <span class="snapshot-source-tag">Randomized from {{ tag.label }}: {{ tag.value }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
   </div>
 
