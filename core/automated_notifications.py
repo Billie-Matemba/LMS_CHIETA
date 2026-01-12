@@ -211,7 +211,7 @@ def send_status_notifications(status, assessment_id=None, role=None, qualificati
         return False
 
 
-def send_personalized_status_notifications(status, assessment_id=None, role=None, qualification=None):
+def send_personalized_status_notifications(status, assessment_id=None, role=None, qualification=None, extra_context=None):
     """
     Send personalized emails to users with template rendering.
     """
@@ -247,6 +247,8 @@ def send_personalized_status_notifications(status, assessment_id=None, role=None
             'qualification': qualification,
             'timestamp': now(),
         }
+        if extra_context:
+            context.update(extra_context)
         try:
             html_message = render_to_string('emails/status_notification.html', context)
             plain_message = strip_tags(html_message)

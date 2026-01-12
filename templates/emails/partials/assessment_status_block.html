@@ -1,0 +1,19 @@
+<div style="border:1px solid #d1d5db; border-radius:8px; padding:12px;">
+  {% if assessment %}
+  <p style="margin:0 0 8px 0;">
+    <strong>{{ assessment.paper }}</strong><br>
+    EISA ID: {{ assessment.eisa_id }}<br>
+    Qualification: {% if assessment.qualification %}{{ assessment.qualification.name }}{% else %}N/A{% endif %}
+  </p>
+  {% endif %}
+  {% if assessment and assessment.comment %}
+  <p style="margin:0 0 8px 0;">
+    <em>Comment:</em> {{ assessment.comment }}
+  </p>
+  {% endif %}
+  {% if assessment_link %}
+  <p style="margin:0;">
+    <a href="{{ assessment_link }}" style="color:#2563eb;">Review this assessment</a>
+  </p>
+  {% endif %}
+</div>
