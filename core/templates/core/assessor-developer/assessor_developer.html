@@ -756,7 +756,7 @@
                         </table>
                     </div>
                     {% else %}
-                    <p class="text-muted mb-0"><i class="fas fa-info-circle me-2"></i>No assessments uploaded yet. Once you upload a paper it will appear here for processing.</p>
+                    <p class="text-muted mb-0"><i class="fas fa-info-circle me-2"></i>No assessments uploaded yet. Once you upload an Eisa tool, it will appear here for processing.</p>
                     {% endif %}
                 </div>
             </div>
@@ -765,7 +765,7 @@
             <div class="card shadow mt-3">
                 <div class="card-header" style="background: linear-gradient(to right, #3a063a, #580658); color: white;">
                     <div class="d-flex justify-content-between align-items-center">
-                        <h5 class="mb-0"><i class="fas fa-camera me-2"></i>Captured Snapshots</h5>
+                        <h5 class="mb-0"><i class="fas fa-camera me-2"></i>Captured Eisa Tools</h5>
                         <span class="badge badge-light">{{ randomized_snapshots|length }} saved</span>
                     </div>
                 </div>
@@ -773,7 +773,7 @@
                     {% if randomized_snapshots %}
                     <div class="row g-2 align-items-center">
                         <div class="col-md-9">
-                            <label for="snapshot-select" class="form-label">Select a randomized snapshot to review</label>
+                            <label for="snapshot-select" class="form-label">Select a randomized EISA tools to review</label>
                             <select id="snapshot-select" class="form-select" onchange="if (this.value) { window.location.href = this.value; }">
                                 <option value="">-- Choose a snapshot --</option>
                                 {% for snap in randomized_snapshots %}
@@ -804,7 +804,7 @@
                     </div>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted mb-0"><i class="fas fa-info-circle me-2"></i>Audit captured blocks per module letter before generating randomized papers.</p>
+                    <p class="text-muted mb-0"><i class="fas fa-info-circle me-2"></i>Audit captured blocks per module letter before generating randomized Eisa Tools.</p>
                 </div>
             </div>
 
@@ -1169,14 +1169,14 @@
                 const data = await response.json().catch(() => ({}));
                 
                 if (!data.ok) {
-                    const message = data.message || 'Failed to build randomized paper.';
+                    const message = data.message || 'Failed to build randomized Eisa Tool.';
                     const missing = Array.isArray(data.missing) && data.missing.length ? 
                         ` Missing: ${data.missing.join(', ')}` : '';
                     setStatus(`${message}${missing}`, 'warning');
                     return;
                 }
                 
-                setStatus(data.message || 'Randomized paper ready.', 'success');
+                setStatus(data.message || 'Randomized Eisa Tool ready.', 'success');
                 
                 if (data.snapshot_url) {
                     setTimeout(() => { 

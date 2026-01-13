@@ -107,6 +107,7 @@ from .question_bank import QUESTION_BANK
 from utils.question_detect import annotate_paper_questions
 from utils.extract_docx import extract_blocks_from_docx
 
+from core.setColourHexadecimal import get_red_color_range
 
 # from .utils import (
 #     annotate_paper_questions,
@@ -2452,6 +2453,8 @@ def assessor_randomized_snapshot(request, assessment_id):
                     return True
             return False
 
+# RFFF
+
         def _content_has_color(blocks, target_colors):
             if not isinstance(blocks, list):
                 return False
@@ -2499,7 +2502,9 @@ def assessor_randomized_snapshot(request, assessment_id):
                 messages.error(request, "No paper attached to this assessment.")
                 return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
 
-            target_colors = {"FF0000"}
+#Critical for ensuring seamless deletion:::::::Here we are calling the function to ensure that we are able to get the red color range
+
+            target_colors = get_red_color_range()
 
             nodes_qs = paper.nodes.order_by("order_index")
             updated_nodes = 0
@@ -2545,25 +2550,35 @@ def assessor_randomized_snapshot(request, assessment_id):
             else:
                 messages.info(request, "No red text found to remove.")
             return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
-
+        
         if action == "delete_answers":
             if not paper:
                 messages.error(request, "No paper attached to this assessment.")
                 return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
-            target_colors = {"FF0000"}
+            
+            target_colors = get_red_color_range()
             nodes_qs = paper.nodes.order_by("order_index")
             updated_nodes = 0
-            styled_nodes = 0
+            styled_runs_found = 0  # CHANGED: Track styled runs separately
+            html_red_found = 0     # CHANGED: Track HTML red text separately
             cleared_labels: list[str] = []
+            
             for node in nodes_qs:
                 content_payload = node.content if isinstance(node.content, list) else []
                 processed = strip_color_from_blocks(content_payload, target_colors)
                 processed_html, html_changed = strip_color_from_blocks_html(processed, target_colors)
                 changed_runs = processed != content_payload
                 changed = changed_runs or html_changed
+                
                 if not changed:
                     continue
-                styled_nodes += 1
+                
+                # CHANGED: Track what was actually removed
+                if changed_runs:
+                    styled_runs_found += 1
+                if html_changed:
+                    html_red_found += 1
+                
                 node.content = processed_html
                 update_fields = ["content"]
                 if (node.node_type or "").lower() != "cover_page":
@@ -2589,18 +2604,84 @@ def assessor_randomized_snapshot(request, assessment_id):
                     if len(cleared_labels) > 5:
                         sample += ", …"
                     preview = f" (e.g. {sample})"
+                
+                # CHANGED: Better message showing what was found
+                deletion_types = []
+                if styled_runs_found > 0:
+                    deletion_types.append(f"{styled_runs_found} styled run(s)")
+                if html_red_found > 0:
+                    deletion_types.append(f"{html_red_found} HTML fragment(s)")
+                
+                details = " and ".join(deletion_types) if deletion_types else "red text"
                 messages.success(
                     request,
-                    f"Deleted red-tagged answers from {updated_nodes} block(s){preview}.",
+                    f"Deleted red-tagged answers from {updated_nodes} block(s) ({details}){preview}.",
                 )
-            elif styled_nodes == 0:
+            elif styled_runs_found == 0 and html_red_found == 0:
+                # CHANGED: Only show this if NOTHING was found
                 messages.info(
                     request,
                     "No blocks contained red-styled runs or HTML fragments. Re-run the extractor to capture color metadata before using this action.",
                 )
             else:
                 messages.info(request, "No red highlighted answers found to delete.")
+            
             return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
+                # if action == "delete_answers":
+        #     if not paper:
+        #         messages.error(request, "No paper attached to this assessment.")
+        #         return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
+        #     target_colors = get_red_color_range()
+        #     nodes_qs = paper.nodes.order_by("order_index")
+        #     updated_nodes = 0
+        #     styled_nodes = 0
+        #     cleared_labels: list[str] = []
+        #     for node in nodes_qs:
+        #         content_payload = node.content if isinstance(node.content, list) else []
+        #         processed = strip_color_from_blocks(content_payload, target_colors)
+        #         processed_html, html_changed = strip_color_from_blocks_html(processed, target_colors)
+        #         changed_runs = processed != content_payload
+        #         changed = changed_runs or html_changed
+        #         if not changed:
+        #             continue
+        #         styled_nodes += 1
+        #         node.content = processed_html
+        #         update_fields = ["content"]
+        #         if (node.node_type or "").lower() != "cover_page":
+        #             node.text = summarize_text_from_blocks(processed_html)
+        #             update_fields.append("text")
+        #         node.save(update_fields=update_fields)
+        #         updated_nodes += 1
+        #         label = node.number or (node.order_index and f"Order {node.order_index}") or str(node.id)
+        #         cleared_labels.append(label)
+
+        #     manifest = paper.structure_json if isinstance(paper.structure_json, dict) else {}
+        #     if manifest and isinstance(manifest.get("nodes"), list):
+        #         nodes_cleaned = strip_color_from_manifest_nodes(manifest["nodes"], target_colors)
+        #         nodes_cleaned = strip_color_from_manifest_nodes_html(nodes_cleaned, target_colors)
+        #         manifest["nodes"] = nodes_cleaned
+        #         paper.structure_json = manifest
+        #         paper.save(update_fields=["structure_json"])
+
+        #     if updated_nodes:
+        #         preview = ""
+        #         if cleared_labels:
+        #             sample = ", ".join(cleared_labels[:5])
+        #             if len(cleared_labels) > 5:
+        #                 sample += ", …"
+        #             preview = f" (e.g. {sample})"
+        #         messages.success(
+        #             request,
+        #             f"Deleted red-tagged answers from {updated_nodes} block(s){preview}.",
+        #         )
+        #     elif styled_nodes == 0:
+        #         messages.info(
+        #             request,
+        #             "No blocks contained red-styled runs or HTML fragments. Re-run the extractor to capture color metadata before using this action.",
+        #         )
+        #     else:
+        #         messages.info(request, "No red highlighted answers found to delete.")
+        #     return redirect("assessor_randomized_snapshot", assessment_id=assessment.id)
 
         if action == "strip_unbold":
             if not paper:

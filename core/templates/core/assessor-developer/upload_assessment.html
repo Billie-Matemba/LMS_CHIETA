@@ -2,6 +2,7 @@
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -11,16 +12,17 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
   <style>
     select#qualification {
-      appearance: auto !important;            /* Just some forceful css to make text visible, it can be removed, its a failsafe incase something happens to the js */
-      -webkit-appearance: auto !important;    
-      background-color: #fff !important;     
-      color: #000 !important;                 
-      -webkit-text-fill-color: #000 !important; 
-      font-size: 1rem !important;             
-      border: 1px solid #ccc !important;      
+      appearance: auto !important;
+      /* Just some forceful css to make text visible, it can be removed, its a failsafe incase something happens to the js */
+      -webkit-appearance: auto !important;
+      background-color: #fff !important;
+      color: #000 !important;
+      -webkit-text-fill-color: #000 !important;
+      font-size: 1rem !important;
+      border: 1px solid #ccc !important;
       border-radius: 4px !important;
       padding: .5em !important;
-      z-index: 1000;                          
+      z-index: 1000;
       position: relative;
     }
 
@@ -34,17 +36,28 @@
       z-index: 10;
     }
 
-    .button-group { display: flex; flex-wrap: wrap; gap: 10px; }
-    .gradient-button.secondary { background: linear-gradient(to right, #1b5e20, #2e7d32, #388e3c); }
-    .gradient-button.warning { background: linear-gradient(to right, #b45309, #d97706, #f97316); }
+    .button-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .gradient-button.secondary {
+      background: linear-gradient(to right, #1b5e20, #2e7d32, #388e3c);
+    }
+
+    .gradient-button.warning {
+      background: linear-gradient(to right, #b45309, #d97706, #f97316);
+    }
   </style>
 </head>
-<body>  
+
+<body>
   {% if messages %}
   {% for message in messages %}
-    <div class="alert alert-success">{{ message }}</div>
+  <div class="alert alert-success">{{ message }}</div>
   {% endfor %}
-{% endif %}
+  {% endif %}
 
   <div class="dashboard-container">
     <div class="sidebar">
@@ -54,56 +67,60 @@
         </a>
       </div>
 
-   <nav class="sidebar-nav">
-    <ul class="nav-list">
-     
-      
-      <li class="nav-item">
-        <a href="{% url 'admin_dashboard' %}" class="nav-link{% if request.resolver_match.url_name == 'admin_dashboard' %} active{% endif %}">
-          <i class="fa fa-home"></i>
-          <span>Dashboard</span>
-        </a>
-      </li>
+      <nav class="sidebar-nav">
+        <ul class="nav-list">
 
-       <li class="nav-item">
-        <a class="nav-link{% if request.resolver_match.url_name == 'upload_assessment' %} active{% endif %}" 
-           href="{% url 'upload_assessment' %}">
-          <i class="fa fa-upload"></i>
-          <span>Upload Assessment</span>
-        </a>
-      </li>
-      
-      <li class="nav-item">
-        <a href="{% url 'assessment_centres' %}" class="nav-link{% if request.resolver_match.url_name == 'assessment_centres' %} active{% endif %}">
-          <i class="fa fa-upload"></i>
-          <span>Assessment Centres</span>
-        </a>
-      </li>
-      
-      <li class="nav-item">
-        <a href="{% url 'user_management' %}" class="nav-link{% if request.resolver_match.url_name == 'user_management' %} active{% endif %}">
-          <i class="fa fa-cogs"></i>
-          <span>User Management</span>
-        </a>
-      </li>
-      
-      <li class="nav-item">
-        <a href="{% url 'manage_qualifications' %}" class="nav-link{% if request.resolver_match.url_name == 'manage_qualifications' %} active{% endif %}">
-          <i class="fa fa-cogs"></i>
-          <span>Qualifications</span>
-        </a>
-      </li>
-    </ul>
-    
-    <div class="sidebar-footer">
-      <a href="{% url 'logout' %}" class="logout-btn">
-        <i class="fa fa-sign-out"></i>
-        <span>Log Out</span>
-      </a>
-      <img src="{% static 'core/images/rb_2149331949.png' %}" alt="Sidebar Art" class="sidebar-art">
+
+          <li class="nav-item">
+            <a href="{% url 'admin_dashboard' %}"
+              class="nav-link{% if request.resolver_match.url_name == 'admin_dashboard' %} active{% endif %}">
+              <i class="fa fa-home"></i>
+              <span>Dashboard</span>
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a class="nav-link{% if request.resolver_match.url_name == 'upload_assessment' %} active{% endif %}"
+              href="{% url 'upload_assessment' %}">
+              <i class="fa fa-upload"></i>
+              <span>Upload Assessment</span>
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a href="{% url 'assessment_centres' %}"
+              class="nav-link{% if request.resolver_match.url_name == 'assessment_centres' %} active{% endif %}">
+              <i class="fa fa-upload"></i>
+              <span>Assessment Centres</span>
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a href="{% url 'user_management' %}"
+              class="nav-link{% if request.resolver_match.url_name == 'user_management' %} active{% endif %}">
+              <i class="fa fa-cogs"></i>
+              <span>User Management</span>
+            </a>
+          </li>
+
+          <li class="nav-item">
+            <a href="{% url 'manage_qualifications' %}"
+              class="nav-link{% if request.resolver_match.url_name == 'manage_qualifications' %} active{% endif %}">
+              <i class="fa fa-cogs"></i>
+              <span>Qualifications</span>
+            </a>
+          </li>
+        </ul>
+
+        <div class="sidebar-footer">
+          <a href="{% url 'logout' %}" class="logout-btn">
+            <i class="fa fa-sign-out"></i>
+            <span>Log Out</span>
+          </a>
+          <img src="{% static 'core/images/rb_2149331949.png' %}" alt="Sidebar Art" class="sidebar-art">
+        </div>
+      </nav>
     </div>
-  </nav>
-</div>
 
 
     <div class="content p-4">
@@ -114,202 +131,205 @@
         <div class="welcome-box">
           <h2>Upload EISA Assessment Tool</h2>
           <div class="welcome-box mb-3">
-  Welcome, {{ user.get_full_name|default:user.username }}<br>
-      Qualification: <strong>{{ request.user.qualification.name|default:"Not Assigned" }}</strong>
-</div>
+            Welcome, {{ user.get_full_name|default:user.username }}<br>
+            Qualification: <strong>{{ request.user.qualification.name|default:"Not Assigned" }}</strong>
+          </div>
           <button class="gradient-button">Innovating for Impact</button>
         </div>
       </div>
 
-      
-<form id="uploadForm" action="{% url 'upload_assessment' %}" method="post" enctype="multipart/form-data">
-  {% csrf_token %}
 
-  <div class="form-section">
-    <label for="qualification">Qualification</label>
-    <select name="qualification" id="qualification" required>
-      <option value="">-- Select Qualification --</option>
-      {% for q in qualifications %}
-        <option value="{{ q.id }}" {% if q.id == request.user.qualification.id %}selected{% endif %}>
-          {{ q.name }}
-        </option>
-      {% endfor %}
-    </select>
-  </div>
+      <form id="uploadForm" action="{% url 'upload_assessment' %}" method="post" enctype="multipart/form-data">
+        {% csrf_token %}
 
-  <div class="form-section">
-    <label for="moduleNumber">Module Number</label>
-    <select name="module_number" id="moduleNumber" required>
-      <option value="">-- Select Module Number --</option>
-    </select>
-  </div>
+        <div class="form-section">
+          <label for="qualification">Qualification</label>
+          <select name="qualification" id="qualification" required>
+            <option value="">-- Select Qualification --</option>
+            {% for q in qualifications %}
+            <option value="{{ q.id }}" {% if q.id==request.user.qualification.id %}selected{% endif %}>
+              {{ q.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
 
-  <div class="form-section">
-    <label for="moduleName">Module Name</label>
-    <input type="text" id="moduleName" name="module_name" placeholder="e.g. Chemical Operations" readonly required>
-  </div>
+        <div class="form-section">
+          <label for="moduleNumber">Module Number</label>
+          <select name="module_number" id="moduleNumber" required>
+            <option value="">-- Select Module Number --</option>
+          </select>
+        </div>
 
-  <div class="form-section">
-    <label for="paperNumber">Paper Number</label>
-    <input type="text" id="paperNumber" name="paper_number" placeholder="e.g. 1A, 1B" required>
-  </div>
+        <div class="form-section">
+          <label for="moduleName">Module Name</label>
+          <input type="text" id="moduleName" name="module_name" placeholder="e.g. Chemical Operations" readonly
+            required>
+        </div>
 
-  <div class="form-section">
-    <label for="saqaID">SAQA ID</label>
-    <input type="text" id="saqaID" name="saqa_id" value="{{ request.user.qualification.saqa_id }}" readonly required>
-  </div>
+        <div class="form-section">
+          <label for="paperNumber">Eisa Tool Number</label>
+          <input type="text" id="paperNumber" name="paper_number" placeholder="e.g. 1A, 1B" required>
+        </div>
 
-  <div class="form-section">
-    <label for="fileInput">Upload EISA Assessment</label>
-    <input type="file" id="fileInput" name="file_input" accept=".docx" required>
-  </div>
+        <div class="form-section">
+          <label for="saqaID">SAQA ID</label>
+          <input type="text" id="saqaID" name="saqa_id" value="{{ request.user.qualification.saqa_id }}" readonly
+            required>
+        </div>
 
-  <div class="form-section">
-    <label for="memoFile">Upload Memo (Required)</label>
-    <input type="file" id="memoFile" name="memo_file" accept=".pdf" required>
-  </div>
+        <div class="form-section">
+          <label for="fileInput">Upload EISA Assessment</label>
+          <input type="file" id="fileInput" name="file_input" accept=".docx" required>
+        </div>
 
-  <div class="form-section">
-    <label for="commentBox">Comment (Optional)</label>
-    <textarea id="commentBox" name="comment_box" rows="3" placeholder="Write any notes..."></textarea>
-  </div>
+        <div class="form-section">
+          <label for="memoFile">Upload Memo (Required)</label>
+          <input type="file" id="memoFile" name="memo_file" accept=".pdf" required>
+        </div>
 
-  <div class="form-section">
-    <div class="button-group">
-      <button type="submit" name="action" value="save" class="gradient-button">Save Draft</button>
-      <button type="submit" name="action" value="assessor_dev" class="gradient-button secondary">Forward to Assessor Developer</button>
-      <button type="submit" name="action" value="etqa" class="gradient-button warning">Forward to ETQA</button>
-    </div>
-  </div>
-</form>
+        <div class="form-section">
+          <label for="commentBox">Comment (Optional)</label>
+          <textarea id="commentBox" name="comment_box" rows="3" placeholder="Write any notes..."></textarea>
+        </div>
 
-<section class="submitted-section">
-  <h3>Submitted Assessments</h3>
-  <table class="assessment-table">
-    <thead>
-      <tr>
-        <th>EISA ID</th>
-        <th>Qualification</th>
-        <th>Paper</th>
-        <th>Status</th>
-        <th>Action</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for a in submissions %}
-        <tr>
-          <td><strong>{{ a.eisa_id }}</strong></td>
-          <td>{{ a.qualification }}</td>
-          <td>{{ a.paper }}</td>
-          <td>{{ a.status }}</td>
-          <td>
-            <a href="{% url 'view_assessment' a.eisa_id %}"
-               class="gradient-button small">
-              ✏️ View/Edit
-            </a>
-          </td>
-        </tr>
-      {% empty %}
-        <tr>
-          <td colspan="5" style="text-align:center;">
-            No assessments submitted yet.
-          </td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</section>
+        <div class="form-section">
+          <div class="button-group">
+            <button type="submit" name="action" value="save" class="gradient-button">Save Draft</button>
+            <button type="submit" name="action" value="assessor_dev" class="gradient-button secondary">Forward to
+              Assessor Developer</button>
+            <button type="submit" name="action" value="etqa" class="gradient-button warning">Forward to ETQA</button>
+          </div>
+        </div>
+      </form>
+
+      <section class="submitted-section">
+        <h3>Submitted Assessments</h3>
+        <table class="assessment-table">
+          <thead>
+            <tr>
+              <th>EISA ID</th>
+              <th>Qualification</th>
+              <th>Paper</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in submissions %}
+            <tr>
+              <td><strong>{{ a.eisa_id }}</strong></td>
+              <td>{{ a.qualification }}</td>
+              <td>{{ a.paper }}</td>
+              <td>{{ a.status }}</td>
+              <td>
+                <a href="{% url 'view_assessment' a.eisa_id %}" class="gradient-button small">
+                  ✏️ View/Edit
+                </a>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="5" style="text-align:center;">
+                No assessments submitted yet.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </section>
 
     </div>
   </div>
 
   <script type="application/json" id="qualification-module-map">{{ module_map_json|safe }}</script>
-<script type="application/json" id="qualification-saqa-map">{{ saqa_map_json|safe }}</script>
-<script>
-  (function () {
-    const moduleMap = JSON.parse(document.getElementById('qualification-module-map').textContent || '{}');
-    const saqaMap = JSON.parse(document.getElementById('qualification-saqa-map').textContent || '{}');
+  <script type="application/json" id="qualification-saqa-map">{{ saqa_map_json|safe }}</script>
+  <script>
+    (function () {
+      const moduleMap = JSON.parse(document.getElementById('qualification-module-map').textContent || '{}');
+      const saqaMap = JSON.parse(document.getElementById('qualification-saqa-map').textContent || '{}');
 
-    const qualificationSelect = document.getElementById('qualification');
-    const moduleSelect = document.getElementById('moduleNumber');
-    const moduleNameInput = document.getElementById('moduleName');
-    const saqaInput = document.getElementById('saqaID');
-    const paperInput = document.getElementById('paperNumber');
+      const qualificationSelect = document.getElementById('qualification');
+      const moduleSelect = document.getElementById('moduleNumber');
+      const moduleNameInput = document.getElementById('moduleName');
+      const saqaInput = document.getElementById('saqaID');
+      const paperInput = document.getElementById('paperNumber');
 
-    function populateModules(qualId) {
-      moduleSelect.innerHTML = '<option value="">-- Select Module Number --</option>';
-      const modules = moduleMap[qualId] || [];
-      modules.forEach(mod => {
-        if (!mod || !mod.code) return;
-        const option = document.createElement('option');
-        option.value = mod.code;
-        option.textContent = mod.label || mod.code;
-        moduleSelect.appendChild(option);
-      });
-      if (moduleSelect.options.length > 1 && !moduleSelect.value) {
-        moduleSelect.selectedIndex = 1;
+      function populateModules(qualId) {
+        moduleSelect.innerHTML = '<option value="">-- Select Module Number --</option>';
+        const modules = moduleMap[qualId] || [];
+        modules.forEach(mod => {
+          if (!mod || !mod.code) return;
+          const option = document.createElement('option');
+          option.value = mod.code;
+          option.textContent = mod.label || mod.code;
+          moduleSelect.appendChild(option);
+        });
+        if (moduleSelect.options.length > 1 && !moduleSelect.value) {
+          moduleSelect.selectedIndex = 1;
+        }
+        updateModuleName(moduleSelect.value);
       }
-      updateModuleName(moduleSelect.value);
-    }
 
-    function updateModuleName(code) {
-      const modules = moduleMap[qualificationSelect.value] || [];
-      const match = modules.find(mod => mod && mod.code === code);
-      if (match) {
-        moduleNameInput.value = match.label || match.code || '';
-      } else if (!code) {
-        moduleNameInput.value = '';
+      function updateModuleName(code) {
+        const modules = moduleMap[qualificationSelect.value] || [];
+        const match = modules.find(mod => mod && mod.code === code);
+        if (match) {
+          moduleNameInput.value = match.label || match.code || '';
+        } else if (!code) {
+          moduleNameInput.value = '';
+        }
+        if (code && paperInput) {
+          paperInput.value = code;
+        }
       }
-      if (code && paperInput) {
-        paperInput.value = code;
-      }
-    }
 
-    function updateSaqa(qualId) {
-      const saqa = saqaMap[qualId] || '';
-      if (saqaInput) {
-        saqaInput.value = saqa;
+      function updateSaqa(qualId) {
+        const saqa = saqaMap[qualId] || '';
+        if (saqaInput) {
+          saqaInput.value = saqa;
+        }
       }
-    }
 
-    if (qualificationSelect) {
-      qualificationSelect.addEventListener('change', () => {
+      if (qualificationSelect) {
+        qualificationSelect.addEventListener('change', () => {
+          populateModules(qualificationSelect.value);
+          updateSaqa(qualificationSelect.value);
+        });
+      }
+
+      if (moduleSelect) {
+        moduleSelect.addEventListener('change', () => {
+          updateModuleName(moduleSelect.value);
+        });
+      }
+
+      if (qualificationSelect && qualificationSelect.value) {
         populateModules(qualificationSelect.value);
         updateSaqa(qualificationSelect.value);
-      });
-    }
+      }
 
-    if (moduleSelect) {
-      moduleSelect.addEventListener('change', () => {
-        updateModuleName(moduleSelect.value);
-      });
-    }
+      const form = document.getElementById('uploadForm');
+      if (form) {
+        form.addEventListener('submit', function (e) {
+          const memoFile = document.getElementById('memoFile').files[0];
+          const assessmentFile = document.getElementById('fileInput').files[0];
 
-    if (qualificationSelect && qualificationSelect.value) {
-      populateModules(qualificationSelect.value);
-      updateSaqa(qualificationSelect.value);
-    }
+          if (!memoFile) {
+            e.preventDefault();
+            alert('Please upload a memo file');
+            return;
+          }
 
-    const form = document.getElementById('uploadForm');
-    if (form) {
-      form.addEventListener('submit', function (e) {
-        const memoFile = document.getElementById('memoFile').files[0];
-        const assessmentFile = document.getElementById('fileInput').files[0];
-
-        if (!memoFile) {
-          e.preventDefault();
-          alert('Please upload a memo file');
-          return;
-        }
-
-        if (!assessmentFile) {
-          e.preventDefault();
-          alert('Please upload an assessment file');
-          return;
-        }
-      });
-    }
-  })();
-</script>
+          if (!assessmentFile) {
+            e.preventDefault();
+            alert('Please upload an assessment file');
+            return;
+          }
+        });
+      }
+    })();
+  </script>
 </body>
+
 </html>

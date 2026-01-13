@@ -522,7 +522,8 @@
                 font-size: 14px;
             }
 
-            th, td {
+            th,
+            td {
                 padding: 8px 10px;
             }
         }
@@ -594,7 +595,8 @@
                 font-size: 12px;
             }
 
-            th, td {
+            th,
+            td {
                 padding: 6px 8px;
             }
         }
@@ -606,7 +608,8 @@
         <!-- Sidebar Navigation -->
         <div class="sidebar">
             <div class="graduate-icon">
-                <img src="{% static 'core/images/logo_simplebbbbbbbbbbbbbb.png' %}" alt="CHIETA Logo" style="width: 130px;">
+                <img src="{% static 'core/images/logo_simplebbbbbbbbbbbbbb.png' %}" alt="CHIETA Logo"
+                    style="width: 130px;">
             </div>
             <br><br>
             <ul>
@@ -661,16 +664,17 @@
                         <select name="qualification" class="form-select">
                             <option value="">All Qualifications</option>
                             {% for q in all_qualifications %}
-                            <option value="{{ q }}" {% if q == filter_qualification %}selected{% endif %}>{{ q }}</option>
+                            <option value="{{ q }}" {% if q==filter_qualification %}selected{% endif %}>{{ q }}</option>
                             {% endfor %}
                         </select>
 
-                        <input type="text" name="paper" placeholder="Paper Number (e.g. 1A)" value="{{ filter_paper }}" class="form-control" />
+                        <input type="text" name="paper" placeholder="Eisa Tool Number (e.g. 1A)"
+                            value="{{ filter_paper }}" class="form-control" />
 
                         <select name="status" class="form-select">
                             <option value="">All Statuses</option>
                             {% for s in all_statuses %}
-                            <option value="{{ s }}" {% if s == filter_status %}selected{% endif %}>{{ s }}</option>
+                            <option value="{{ s }}" {% if s==filter_status %}selected{% endif %}>{{ s }}</option>
                             {% endfor %}
                         </select>
 
