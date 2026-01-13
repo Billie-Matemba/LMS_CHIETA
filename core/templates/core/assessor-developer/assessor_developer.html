@@ -610,7 +610,8 @@
         <div class="sidebar">
             <div class="graduate-icon">
                 <a href="{% url 'assessor_dashboard' %}">
-                    <img src="{% static 'core/images/logo_simplebbbbbbbbbbbbbb.png' %}" alt="CHIETA Logo" style="width: 130px;">
+                    <img src="{% static 'core/images/logo_simplebbbbbbbbbbbbbb.png' %}" alt="CHIETA Logo"
+                        style="width: 130px;">
                 </a>
             </div>
             <br><br>
@@ -658,7 +659,7 @@
                         Welcome, {{ user.get_full_name|default:user.username }}<br>
                         Qualification: <strong>{{ request.user.qualification.name|default:"Not Assigned" }}</strong>
                         <br>
-                        Manage assessment development, create randomized papers, and track your pipeline progress.
+                        Manage assessment development, create randomized Eisa Tools, and track your pipeline progress.
                         <span class="highlight">Build exceptional assessments!</span>
                     </div>
                 </div>
@@ -667,8 +668,10 @@
             {% if messages %}
             <div class="messages mt-3">
                 {% for message in messages %}
-                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}info{% endif %} alert-dismissible fade show" role="alert">
-                    <i class="fas fa-{% if message.tags == 'error' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}info{% endif %} alert-dismissible fade show"
+                    role="alert">
+                    <i
+                        class="fas fa-{% if message.tags == 'error' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
                     {{ message }}
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
@@ -707,10 +710,14 @@
                                     <td>{{ assessment.paper }}</td>
                                     <td>
                                         {% with status=assessment.status %}
-                                        {% if "ETQA" in status %}<span class="status-pill info"><i class="fas fa-paper-plane me-1"></i>{{ status }}</span>
-                                        {% elif "QCTO" in status %}<span class="status-pill pending"><i class="fas fa-user-check me-1"></i>{{ status }}</span>
-                                        {% elif "Approved" in status %}<span class="status-pill success"><i class="fas fa-check me-1"></i>{{ status }}</span>
-                                        {% elif "Rejected" in status %}<span class="status-pill danger"><i class="fas fa-times me-1"></i>{{ status }}</span>
+                                        {% if "ETQA" in status %}<span class="status-pill info"><i
+                                                class="fas fa-paper-plane me-1"></i>{{ status }}</span>
+                                        {% elif "QCTO" in status %}<span class="status-pill pending"><i
+                                                class="fas fa-user-check me-1"></i>{{ status }}</span>
+                                        {% elif "Approved" in status %}<span class="status-pill success"><i
+                                                class="fas fa-check me-1"></i>{{ status }}</span>
+                                        {% elif "Rejected" in status %}<span class="status-pill danger"><i
+                                                class="fas fa-times me-1"></i>{{ status }}</span>
                                         {% else %}<span class="status-pill pending">{{ status }}</span>{% endif %}
                                         {% endwith %}
                                     </td>
@@ -736,10 +743,10 @@
                                             {% if assessment.paper_link and assessment.paper_type != 'randomized' %}
                                             <span class="text-muted small">Randomize via snapshots</span>
                                             {% endif %} -->
-                                            <!-- <button type="submit" name="action" value="open_pipeline" class="btn btn-success btn-sm">
+                                    <!-- <button type="submit" name="action" value="open_pipeline" class="btn btn-success btn-sm">
                                                 <i class="fas fa-external-link-alt me-1"></i>Advanced View
                                             </button> -->
-                                            <!-- <button type="submit" name="action" value="open_pipeline" class="btn btn-outline-warning btn-sm" onclick="this.form.refresh.value='1'">
+                                    <!-- <button type="submit" name="action" value="open_pipeline" class="btn btn-outline-warning btn-sm" onclick="this.form.refresh.value='1'">
                                                 <i class="fas fa-sync-alt me-1"></i>Rebuild & Open
                                             </button>
                                             <button type="submit" name="action" value="forward_etqa" class="btn btn-warning btn-sm text-white">
@@ -748,7 +755,7 @@
                                             <button type="submit" name="action" value="forward_qcto" class="btn btn-outline-warning btn-sm">
                                                 <i class="fas fa-share me-1"></i>Forward QCTO
                                             </button> -->
-                                        </form>
+                                    </form>
                                     </td>
                                 </tr>
                                 {% endfor %}
@@ -756,7 +763,8 @@
                         </table>
                     </div>
                     {% else %}
-                    <p class="text-muted mb-0"><i class="fas fa-info-circle me-2"></i>No assessments uploaded yet. Once you upload an Eisa tool, it will appear here for processing.</p>
+                    <p class="text-muted mb-0"><i class="fas fa-info-circle me-2"></i>No assessments uploaded yet. Once
+                        you upload an Eisa tool, it will appear here for processing.</p>
                     {% endif %}
                 </div>
             </div>
@@ -773,8 +781,10 @@
                     {% if randomized_snapshots %}
                     <div class="row g-2 align-items-center">
                         <div class="col-md-9">
-                            <label for="snapshot-select" class="form-label">Select a randomized EISA tools to review</label>
-                            <select id="snapshot-select" class="form-select" onchange="if (this.value) { window.location.href = this.value; }">
+                            <label for="snapshot-select" class="form-label">Select a randomized EISA tools to
+                                review</label>
+                            <select id="snapshot-select" class="form-select"
+                                onchange="if (this.value) { window.location.href = this.value; }">
                                 <option value="">-- Choose a snapshot --</option>
                                 {% for snap in randomized_snapshots %}
                                 <option value="{% url 'assessor_randomized_snapshot' snap.id %}">
@@ -784,11 +794,13 @@
                             </select>
                         </div>
                         <div class="col-md-3 text-md-end">
-                            <small class="text-muted">Snapshots are randomized reconstructions generated via the advanced pipeline.</small>
+                            <small class="text-muted">Snapshots are randomized reconstructions generated via the
+                                advanced pipeline.</small>
                         </div>
                     </div>
                     {% else %}
-                    <p class="text-muted mb-0"><i class="fas fa-info-circle me-2"></i>No randomized snapshots captured yet. Build one from the advanced extractor to see it here.</p>
+                    <p class="text-muted mb-0"><i class="fas fa-info-circle me-2"></i>No randomized snapshots captured
+                        yet. Build one from the advanced extractor to see it here.</p>
                     {% endif %}
                 </div>
             </div>
@@ -798,13 +810,15 @@
                 <div class="card-header" style="background: linear-gradient(to right, #3a063a, #580658); color: white;">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="mb-0"><i class="fas fa-random me-2"></i>Randomization Pools</h5>
-                        <button type="button" class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#assessorPoolModal">
+                        <button type="button" class="btn btn-outline-light btn-sm" data-bs-toggle="modal"
+                            data-bs-target="#assessorPoolModal">
                             <i class="fas fa-eye me-1"></i>View Pools
                         </button>
                     </div>
                 </div>
                 <div class="card-body">
-                    <p class="text-muted mb-0"><i class="fas fa-info-circle me-2"></i>Audit captured blocks per module letter before generating randomized Eisa Tools.</p>
+                    <p class="text-muted mb-0"><i class="fas fa-info-circle me-2"></i>Audit captured blocks per module
+                        letter before generating randomized Eisa Tools.</p>
                 </div>
             </div>
 
@@ -812,7 +826,8 @@
             <div class="row g-3 mt-3">
                 <div class="col-lg-6">
                     <div class="card shadow">
-                        <div class="card-header" style="background: linear-gradient(to right, #3a063a, #580658); color: white;">
+                        <div class="card-header"
+                            style="background: linear-gradient(to right, #3a063a, #580658); color: white;">
                             <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Awaiting ETQA</h5>
                         </div>
                         <div class="card-body">
@@ -829,14 +844,16 @@
                                 {% endfor %}
                             </ul>
                             {% else %}
-                            <p class="text-muted mb-0"><i class="fas fa-check-circle me-2"></i>No assessments waiting on ETQA right now.</p>
+                            <p class="text-muted mb-0"><i class="fas fa-check-circle me-2"></i>No assessments waiting on
+                                ETQA right now.</p>
                             {% endif %}
                         </div>
                     </div>
                 </div>
                 <div class="col-lg-6">
                     <div class="card shadow">
-                        <div class="card-header" style="background: linear-gradient(to right, #3a063a, #580658); color: white;">
+                        <div class="card-header"
+                            style="background: linear-gradient(to right, #3a063a, #580658); color: white;">
                             <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Awaiting QCTO</h5>
                         </div>
                         <div class="card-body">
@@ -853,7 +870,8 @@
                                 {% endfor %}
                             </ul>
                             {% else %}
-                            <p class="text-muted mb-0"><i class="fas fa-check-circle me-2"></i>No assessments waiting on QCTO right now.</p>
+                            <p class="text-muted mb-0"><i class="fas fa-check-circle me-2"></i>No assessments waiting on
+                                QCTO right now.</p>
                             {% endif %}
                         </div>
                     </div>
@@ -863,7 +881,8 @@
     </div>
 
     <!-- Modals -->
-    <div class="modal fade" id="assessorPoolModal" tabindex="-1" aria-hidden="true" data-url="{% url 'assessor_pool_data' %}" data-randomize-url="{% url 'assessor_pool_randomize' %}">
+    <div class="modal fade" id="assessorPoolModal" tabindex="-1" aria-hidden="true"
+        data-url="{% url 'assessor_pool_data' %}" data-randomize-url="{% url 'assessor_pool_randomize' %}">
         <div class="modal-dialog modal-xl modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
@@ -885,9 +904,11 @@
                             </select>
                         </div>
                         <div class="col-md-3 text-md-end">
-                            <button type="button" class="btn btn-outline-secondary" data-role="pool-refresh">Refresh</button>
+                            <button type="button" class="btn btn-outline-secondary"
+                                data-role="pool-refresh">Refresh</button>
                             <div class="form-check mt-2">
-                                <input class="form-check-input" type="checkbox" id="poolUseBase" data-role="pool-use-base">
+                                <input class="form-check-input" type="checkbox" id="poolUseBase"
+                                    data-role="pool-use-base">
                                 <label class="form-check-label" for="poolUseBase">Use base blueprint</label>
                             </div>
                         </div>
@@ -917,621 +938,621 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-       document.addEventListener('DOMContentLoaded', function () {
-    // Add hover effects to table rows
-    const tableRows = document.querySelectorAll('tbody tr');
-    tableRows.forEach(row => {
-        row.addEventListener('mouseenter', function () {
-            this.style.transform = 'translateY(-2px)';
-            this.style.transition = 'transform 0.2s ease';
-        });
+        document.addEventListener('DOMContentLoaded', function () {
+            // Add hover effects to table rows
+            const tableRows = document.querySelectorAll('tbody tr');
+            tableRows.forEach(row => {
+                row.addEventListener('mouseenter', function () {
+                    this.style.transform = 'translateY(-2px)';
+                    this.style.transition = 'transform 0.2s ease';
+                });
 
-        row.addEventListener('mouseleave', function () {
-            this.style.transform = 'translateY(0)';
-        });
-    });
+                row.addEventListener('mouseleave', function () {
+                    this.style.transform = 'translateY(0)';
+                });
+            });
 
-    // Search functionality
-    const searchInput = document.querySelector('input[type="search"]');
-    if (searchInput) {
-        searchInput.addEventListener('input', function () {
-            const searchTerm = this.value.toLowerCase();
-            const rows = document.querySelectorAll('.table tbody tr');
+            // Search functionality
+            const searchInput = document.querySelector('input[type="search"]');
+            if (searchInput) {
+                searchInput.addEventListener('input', function () {
+                    const searchTerm = this.value.toLowerCase();
+                    const rows = document.querySelectorAll('.table tbody tr');
 
-            rows.forEach(row => {
-                const text = row.textContent.toLowerCase();
-                if (text.includes(searchTerm)) {
-                    row.style.display = '';
+                    rows.forEach(row => {
+                        const text = row.textContent.toLowerCase();
+                        if (text.includes(searchTerm)) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+            }
+
+            // Add active state to current page in sidebar
+            const currentPath = window.location.pathname;
+            const sidebarLinks = document.querySelectorAll('.sidebar .nav-link');
+
+            sidebarLinks.forEach(link => {
+                if (link.getAttribute('href') === currentPath) {
+                    link.classList.add('active');
+                    link.parentElement.classList.add('active');
                 } else {
-                    row.style.display = 'none';
-                }
-            });
-        });
-    }
-
-    // Add active state to current page in sidebar
-    const currentPath = window.location.pathname;
-    const sidebarLinks = document.querySelectorAll('.sidebar .nav-link');
-
-    sidebarLinks.forEach(link => {
-        if (link.getAttribute('href') === currentPath) {
-            link.classList.add('active');
-            link.parentElement.classList.add('active');
-        } else {
-            link.classList.remove('active');
-            link.parentElement.classList.remove('active');
-        }
-    });
-
-    // Original form handling
-    document.querySelectorAll('button[name="action"]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            const form = btn.form;
-            if (btn.value !== 'open_pipeline') {
-                form.querySelector('input[name="refresh"]').value = '0';
-            }
-        });
-    });
-
-    // Enhanced CSRF token function
-    const getCsrfToken = () => {
-        // Try multiple ways to get CSRF token
-        const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
-        if (csrfInput) return csrfInput.value;
-        
-        const csrfCookie = document.cookie.match(/csrftoken=([^;]+)/);
-        if (csrfCookie) return csrfCookie[1];
-        
-        const metaTag = document.querySelector('meta[name="csrf-token"]');
-        if (metaTag) return metaTag.getAttribute('content');
-        
-        console.warn('CSRF token not found');
-        return '';
-    };
-
-    // Modal functionality
-    (function () {
-        const modalEl = document.getElementById('assessorPoolModal');
-        if (!modalEl) return;
-
-        const endpoint = modalEl.getAttribute('data-url');
-        const statusEl = modalEl.querySelector('[data-role="pool-status"]');
-        const gridEl = modalEl.querySelector('[data-role="pool-grid"]');
-        const detailEl = modalEl.querySelector('[data-role="pool-detail"]');
-        const moduleSelect = modalEl.querySelector('[data-role="pool-filter-module"]');
-        const letterSelect = modalEl.querySelector('[data-role="pool-filter-letter"]');
-        const refreshBtn = modalEl.querySelector('[data-role="pool-refresh"]');
-        const randomizeUrl = modalEl.getAttribute('data-randomize-url');
-        const csrfToken = getCsrfToken();
-        const previewModalEl = document.getElementById('poolPreviewModal');
-        const previewModal = previewModalEl ? new bootstrap.Modal(previewModalEl) : null;
-        const previewBody = previewModalEl?.querySelector('[data-role="pool-preview-body"]');
-
-        let tiles = [];
-        let rawModules = [];
-        let activeTile = null;
-
-        const naturalKey = (value) => {
-            const text = (value || '').toString();
-            return text.split(/(\d+)/).map(part => (part.match(/^\d+$/) ? Number(part) : part.toLowerCase()));
-        };
-
-        const escapeHtml = (value) => {
-            const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "\'": "&#39;" };
-            return (value || '').toString().replace(/[&<>\"']/g, char => map[char] || char);
-        };
-
-        const openPreview = (content, label) => {
-            if (!previewModal || !previewBody) return;
-            previewBody.innerHTML = '';
-
-            const title = document.createElement('h6');
-            title.className = 'fw-semibold mb-3';
-            title.textContent = label ? `Block Preview · ${label}` : 'Block Preview';
-            previewBody.appendChild(title);
-
-            if (!content) {
-                previewBody.innerHTML += '<p class="text-muted mb-0">No content captured for this block yet.</p>';
-                previewModal.show();
-                return;
-            }
-
-            let payload;
-            try {
-                payload = JSON.parse(content);
-            } catch (err) {
-                previewBody.innerHTML += '<p class="text-muted">Unable to parse captured content.</p>';
-                previewModal.show();
-                return;
-            }
-
-            const items = Array.isArray(payload) ? payload : (payload.items || []);
-            if (!items.length) {
-                previewBody.innerHTML += '<p class="text-muted mb-0">No structured content was captured for this block.</p>';
-                previewModal.show();
-                return;
-            }
-
-            items.forEach(item => {
-                if (typeof item !== 'object' || !item) return;
-                const type = (item.type || '').toLowerCase();
-                if (type === 'text' || type === 'question_text' || type === 'instruction' || type === 'case_study' || type === 'heading') {
-                    const p = document.createElement('p');
-                    p.textContent = item.text || '';
-                    previewBody.appendChild(p);
-                } else if (type === 'table') {
-                    const div = document.createElement('div');
-                    div.className = 'table-responsive mb-3';
-                    div.innerHTML = item.html || '';
-                    previewBody.appendChild(div);
-                } else if (type === 'image') {
-                    (item.images || []).forEach(src => {
-                        const img = document.createElement('img');
-                        img.src = src;
-                        img.className = 'img-fluid rounded border mb-2';
-                        previewBody.appendChild(img);
-                    });
+                    link.classList.remove('active');
+                    link.parentElement.classList.remove('active');
                 }
             });
 
-            previewModal.show();
-        };
-
-        const setStatus = (message, variant = 'info') => {
-            if (!statusEl) return;
-            if (!message) {
-                statusEl.classList.add('d-none');
-                statusEl.textContent = '';
-                return;
-            }
-            statusEl.className = `alert alert-${variant}`;
-            statusEl.textContent = message;
-            statusEl.classList.remove('d-none');
-        };
-
-        const buildTiles = (modules) => {
-            const list = [];
-            modules.forEach(module => {
-                (module.letters || []).forEach(letter => {
-                    list.push({
-                        module: module.name || 'Unknown Module',
-                        letter: letter.letter || '-',
-                        count: letter.count || 0,
-                        entries: letter.entries || [],
-                    });
+            // Original form handling
+            document.querySelectorAll('button[name="action"]').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const form = btn.form;
+                    if (btn.value !== 'open_pipeline') {
+                        form.querySelector('input[name="refresh"]').value = '0';
+                    }
                 });
             });
-            list.sort((a, b) => {
-                const modA = a.module.toLowerCase();
-                const modB = b.module.toLowerCase();
-                if (modA !== modB) return modA < modB ? -1 : 1;
-                if (a.letter !== b.letter) return a.letter < b.letter ? -1 : 1;
-                return 0;
-            });
-            return list;
-        };
 
-        const runRandomize = async (tile) => {
-            if (!randomizeUrl) {
-                setStatus('Randomization endpoint unavailable.', 'danger');
-                return;
-            }
-            
-            if (!csrfToken) {
-                setStatus('Security token missing. Please refresh the page.', 'danger');
-                return;
-            }
-            
-            setStatus(`Randomizing ${tile.module} · ${tile.letter}…`, 'info');
-            
-            try {
-                const useBase = modalEl.querySelector('[data-role="pool-use-base"]') ? 
-                    modalEl.querySelector('[data-role="pool-use-base"]').checked : false;
-                const mode = useBase ? 'base' : 'pool';
-                
-                const body = new URLSearchParams({ 
-                    module: tile.module, 
-                    letter: tile.letter, 
-                    mode 
-                });
-                
-                const headers = {
-                    'X-CSRFToken': csrfToken,
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                };
-                
-                console.log('Making randomization request to:', randomizeUrl);
-                console.log('Request body:', Object.fromEntries(body));
-                
-                const response = await fetch(randomizeUrl, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers,
-                    body,
-                });
-                
-                // Handle HTTP errors
-                if (response.status === 403) {
-                    setStatus('Access denied. You may not have permission to randomize this pool.', 'danger');
-                    return;
-                }
-                
-                if (response.status === 401) {
-                    setStatus('Authentication required. Please refresh the page.', 'danger');
-                    return;
-                }
-                
-                if (!response.ok) {
-                    setStatus(`Server error: ${response.status} ${response.statusText}`, 'danger');
-                    return;
-                }
-                
-                const data = await response.json().catch(() => ({}));
-                
-                if (!data.ok) {
-                    const message = data.message || 'Failed to build randomized Eisa Tool.';
-                    const missing = Array.isArray(data.missing) && data.missing.length ? 
-                        ` Missing: ${data.missing.join(', ')}` : '';
-                    setStatus(`${message}${missing}`, 'warning');
-                    return;
-                }
-                
-                setStatus(data.message || 'Randomized Eisa Tool ready.', 'success');
-                
-                if (data.snapshot_url) {
-                    setTimeout(() => { 
-                        window.location.href = data.snapshot_url; 
-                    }, 1000);
-                }
-                
-            } catch (err) {
-                console.error('Randomization error:', err);
-                setStatus('Network error during randomization. Please check your connection.', 'danger');
-            }
-        };
+            // Enhanced CSRF token function
+            const getCsrfToken = () => {
+                // Try multiple ways to get CSRF token
+                const csrfInput = document.querySelector('input[name="csrfmiddlewaretoken"]');
+                if (csrfInput) return csrfInput.value;
 
-        const renderDetail = (tile) => {
-            detailEl.innerHTML = '';
-            const heading = document.createElement('h6');
-            heading.className = 'fw-semibold mb-2';
-            heading.textContent = `${tile.module} · ${tile.letter}`;
-            detailEl.appendChild(heading);
+                const csrfCookie = document.cookie.match(/csrftoken=([^;]+)/);
+                if (csrfCookie) return csrfCookie[1];
 
-            if (!tile.entries.length) {
-                const empty = document.createElement('p');
-                empty.className = 'text-muted';
-                empty.textContent = 'No captured blocks for this letter yet.';
-                detailEl.appendChild(empty);
-                return;
-            }
+                const metaTag = document.querySelector('meta[name="csrf-token"]');
+                if (metaTag) return metaTag.getAttribute('content');
 
-            const wrapper = document.createElement('div');
-            wrapper.className = 'table-responsive';
-            const table = document.createElement('table');
-            table.className = 'table table-sm align-middle pool-detail-table';
-            table.innerHTML = '<thead><tr><th>Question</th><th>Parent</th><th>Type</th><th>Marks</th><th>Preview</th><th>Captured</th></tr></thead>';
-            const tbody = document.createElement('tbody');
-
-            const makeCell = (value) => {
-                const td = document.createElement('td');
-                td.textContent = value || '-';
-                return td;
+                console.warn('CSRF token not found');
+                return '';
             };
 
-            tile.entries.forEach(entry => {
-                const row = document.createElement('tr');
-                const captured = entry.created_at ? new Date(entry.created_at).toLocaleString() : '-';
+            // Modal functionality
+            (function () {
+                const modalEl = document.getElementById('assessorPoolModal');
+                if (!modalEl) return;
 
-                row.appendChild(makeCell(entry.question_number));
-                row.appendChild(makeCell(entry.parent_number));
-                row.appendChild(makeCell(entry.qtype));
-                row.appendChild(makeCell(entry.marks));
+                const endpoint = modalEl.getAttribute('data-url');
+                const statusEl = modalEl.querySelector('[data-role="pool-status"]');
+                const gridEl = modalEl.querySelector('[data-role="pool-grid"]');
+                const detailEl = modalEl.querySelector('[data-role="pool-detail"]');
+                const moduleSelect = modalEl.querySelector('[data-role="pool-filter-module"]');
+                const letterSelect = modalEl.querySelector('[data-role="pool-filter-letter"]');
+                const refreshBtn = modalEl.querySelector('[data-role="pool-refresh"]');
+                const randomizeUrl = modalEl.getAttribute('data-randomize-url');
+                const csrfToken = getCsrfToken();
+                const previewModalEl = document.getElementById('poolPreviewModal');
+                const previewModal = previewModalEl ? new bootstrap.Modal(previewModalEl) : null;
+                const previewBody = previewModalEl?.querySelector('[data-role="pool-preview-body"]');
 
-                const previewCell = document.createElement('td');
-                const previewBtn = document.createElement('button');
-                previewBtn.type = 'button';
-                previewBtn.className = 'btn btn-sm btn-outline-secondary';
-                previewBtn.setAttribute('data-role', 'pool-preview');
-                previewBtn.dataset.content = entry.content || '';
-                previewBtn.dataset.label = entry.question_number || entry.qtype || 'Block';
-                previewBtn.innerHTML = '<i class="fa fa-eye"></i>';
-                previewCell.appendChild(previewBtn);
-                if (entry.content_preview) {
-                    const previewText = document.createElement('span');
-                    previewText.className = 'ms-2 text-muted small';
-                    previewText.textContent = entry.content_preview;
-                    previewCell.appendChild(previewText);
-                }
-                row.appendChild(previewCell);
+                let tiles = [];
+                let rawModules = [];
+                let activeTile = null;
 
-                row.appendChild(makeCell(captured));
-                tbody.appendChild(row);
-            });
+                const naturalKey = (value) => {
+                    const text = (value || '').toString();
+                    return text.split(/(\d+)/).map(part => (part.match(/^\d+$/) ? Number(part) : part.toLowerCase()));
+                };
 
-            table.appendChild(tbody);
-            wrapper.appendChild(table);
-            detailEl.appendChild(wrapper);
+                const escapeHtml = (value) => {
+                    const map = { "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "\'": "&#39;" };
+                    return (value || '').toString().replace(/[&<>\"']/g, char => map[char] || char);
+                };
 
-            tbody.querySelectorAll('[data-role="pool-preview"]').forEach(btn => {
-                btn.addEventListener('click', () => openPreview(btn.dataset.content, btn.dataset.label));
-            });
+                const openPreview = (content, label) => {
+                    if (!previewModal || !previewBody) return;
+                    previewBody.innerHTML = '';
 
-            const actions = document.createElement('div');
-            actions.className = 'd-flex justify-content-between align-items-center mt-3';
-            const note = document.createElement('small');
-            note.className = 'text-muted';
-            note.textContent = 'Randomize will create a new paper from this module and letter. Ensure all question numbers are captured.';
-            const randomizeBtn = document.createElement('button');
-            randomizeBtn.type = 'button';
-            randomizeBtn.className = 'btn btn-primary';
-            randomizeBtn.textContent = 'Randomize From This Pool';
-            randomizeBtn.addEventListener('click', () => runRandomize(tile));
-            actions.appendChild(note);
-            actions.appendChild(randomizeBtn);
-            detailEl.appendChild(actions);
-        };
+                    const title = document.createElement('h6');
+                    title.className = 'fw-semibold mb-3';
+                    title.textContent = label ? `Block Preview · ${label}` : 'Block Preview';
+                    previewBody.appendChild(title);
 
-        const activateTile = (tile, button) => {
-            gridEl.querySelectorAll('.pool-tile').forEach(btn => btn.classList.remove('active'));
-            button.classList.add('active');
-            activeTile = tile;
-            renderDetail(tile);
-        };
+                    if (!content) {
+                        previewBody.innerHTML += '<p class="text-muted mb-0">No content captured for this block yet.</p>';
+                        previewModal.show();
+                        return;
+                    }
 
-        const renderTiles = (tileList) => {
-            gridEl.innerHTML = '';
-            detailEl.innerHTML = '';
-            activeTile = null;
+                    let payload;
+                    try {
+                        payload = JSON.parse(content);
+                    } catch (err) {
+                        previewBody.innerHTML += '<p class="text-muted">Unable to parse captured content.</p>';
+                        previewModal.show();
+                        return;
+                    }
 
-            if (!tileList.length) {
-                setStatus('No pools match this filter. Capture blocks in the extractor to build the pool.', 'warning');
-                return;
-            }
+                    const items = Array.isArray(payload) ? payload : (payload.items || []);
+                    if (!items.length) {
+                        previewBody.innerHTML += '<p class="text-muted mb-0">No structured content was captured for this block.</p>';
+                        previewModal.show();
+                        return;
+                    }
 
-            setStatus('', 'info');
+                    items.forEach(item => {
+                        if (typeof item !== 'object' || !item) return;
+                        const type = (item.type || '').toLowerCase();
+                        if (type === 'text' || type === 'question_text' || type === 'instruction' || type === 'case_study' || type === 'heading') {
+                            const p = document.createElement('p');
+                            p.textContent = item.text || '';
+                            previewBody.appendChild(p);
+                        } else if (type === 'table') {
+                            const div = document.createElement('div');
+                            div.className = 'table-responsive mb-3';
+                            div.innerHTML = item.html || '';
+                            previewBody.appendChild(div);
+                        } else if (type === 'image') {
+                            (item.images || []).forEach(src => {
+                                const img = document.createElement('img');
+                                img.src = src;
+                                img.className = 'img-fluid rounded border mb-2';
+                                previewBody.appendChild(img);
+                            });
+                        }
+                    });
 
-            tileList.forEach(tile => {
-                const btn = document.createElement('button');
-                btn.type = 'button';
-                btn.className = 'pool-tile';
-                btn.innerHTML = `
+                    previewModal.show();
+                };
+
+                const setStatus = (message, variant = 'info') => {
+                    if (!statusEl) return;
+                    if (!message) {
+                        statusEl.classList.add('d-none');
+                        statusEl.textContent = '';
+                        return;
+                    }
+                    statusEl.className = `alert alert-${variant}`;
+                    statusEl.textContent = message;
+                    statusEl.classList.remove('d-none');
+                };
+
+                const buildTiles = (modules) => {
+                    const list = [];
+                    modules.forEach(module => {
+                        (module.letters || []).forEach(letter => {
+                            list.push({
+                                module: module.name || 'Unknown Module',
+                                letter: letter.letter || '-',
+                                count: letter.count || 0,
+                                entries: letter.entries || [],
+                            });
+                        });
+                    });
+                    list.sort((a, b) => {
+                        const modA = a.module.toLowerCase();
+                        const modB = b.module.toLowerCase();
+                        if (modA !== modB) return modA < modB ? -1 : 1;
+                        if (a.letter !== b.letter) return a.letter < b.letter ? -1 : 1;
+                        return 0;
+                    });
+                    return list;
+                };
+
+                const runRandomize = async (tile) => {
+                    if (!randomizeUrl) {
+                        setStatus('Randomization endpoint unavailable.', 'danger');
+                        return;
+                    }
+
+                    if (!csrfToken) {
+                        setStatus('Security token missing. Please refresh the page.', 'danger');
+                        return;
+                    }
+
+                    setStatus(`Randomizing ${tile.module} · ${tile.letter}…`, 'info');
+
+                    try {
+                        const useBase = modalEl.querySelector('[data-role="pool-use-base"]') ?
+                            modalEl.querySelector('[data-role="pool-use-base"]').checked : false;
+                        const mode = useBase ? 'base' : 'pool';
+
+                        const body = new URLSearchParams({
+                            module: tile.module,
+                            letter: tile.letter,
+                            mode
+                        });
+
+                        const headers = {
+                            'X-CSRFToken': csrfToken,
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        };
+
+                        console.log('Making randomization request to:', randomizeUrl);
+                        console.log('Request body:', Object.fromEntries(body));
+
+                        const response = await fetch(randomizeUrl, {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            headers,
+                            body,
+                        });
+
+                        // Handle HTTP errors
+                        if (response.status === 403) {
+                            setStatus('Access denied. You may not have permission to randomize this pool.', 'danger');
+                            return;
+                        }
+
+                        if (response.status === 401) {
+                            setStatus('Authentication required. Please refresh the page.', 'danger');
+                            return;
+                        }
+
+                        if (!response.ok) {
+                            setStatus(`Server error: ${response.status} ${response.statusText}`, 'danger');
+                            return;
+                        }
+
+                        const data = await response.json().catch(() => ({}));
+
+                        if (!data.ok) {
+                            const message = data.message || 'Failed to build randomized Eisa Tool.';
+                            const missing = Array.isArray(data.missing) && data.missing.length ?
+                                ` Missing: ${data.missing.join(', ')}` : '';
+                            setStatus(`${message}${missing}`, 'warning');
+                            return;
+                        }
+
+                        setStatus(data.message || 'Randomized Eisa Tool ready.', 'success');
+
+                        if (data.snapshot_url) {
+                            setTimeout(() => {
+                                window.location.href = data.snapshot_url;
+                            }, 1000);
+                        }
+
+                    } catch (err) {
+                        console.error('Randomization error:', err);
+                        setStatus('Network error during randomization. Please check your connection.', 'danger');
+                    }
+                };
+
+                const renderDetail = (tile) => {
+                    detailEl.innerHTML = '';
+                    const heading = document.createElement('h6');
+                    heading.className = 'fw-semibold mb-2';
+                    heading.textContent = `${tile.module} · ${tile.letter}`;
+                    detailEl.appendChild(heading);
+
+                    if (!tile.entries.length) {
+                        const empty = document.createElement('p');
+                        empty.className = 'text-muted';
+                        empty.textContent = 'No captured blocks for this letter yet.';
+                        detailEl.appendChild(empty);
+                        return;
+                    }
+
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'table-responsive';
+                    const table = document.createElement('table');
+                    table.className = 'table table-sm align-middle pool-detail-table';
+                    table.innerHTML = '<thead><tr><th>Question</th><th>Parent</th><th>Type</th><th>Marks</th><th>Preview</th><th>Captured</th></tr></thead>';
+                    const tbody = document.createElement('tbody');
+
+                    const makeCell = (value) => {
+                        const td = document.createElement('td');
+                        td.textContent = value || '-';
+                        return td;
+                    };
+
+                    tile.entries.forEach(entry => {
+                        const row = document.createElement('tr');
+                        const captured = entry.created_at ? new Date(entry.created_at).toLocaleString() : '-';
+
+                        row.appendChild(makeCell(entry.question_number));
+                        row.appendChild(makeCell(entry.parent_number));
+                        row.appendChild(makeCell(entry.qtype));
+                        row.appendChild(makeCell(entry.marks));
+
+                        const previewCell = document.createElement('td');
+                        const previewBtn = document.createElement('button');
+                        previewBtn.type = 'button';
+                        previewBtn.className = 'btn btn-sm btn-outline-secondary';
+                        previewBtn.setAttribute('data-role', 'pool-preview');
+                        previewBtn.dataset.content = entry.content || '';
+                        previewBtn.dataset.label = entry.question_number || entry.qtype || 'Block';
+                        previewBtn.innerHTML = '<i class="fa fa-eye"></i>';
+                        previewCell.appendChild(previewBtn);
+                        if (entry.content_preview) {
+                            const previewText = document.createElement('span');
+                            previewText.className = 'ms-2 text-muted small';
+                            previewText.textContent = entry.content_preview;
+                            previewCell.appendChild(previewText);
+                        }
+                        row.appendChild(previewCell);
+
+                        row.appendChild(makeCell(captured));
+                        tbody.appendChild(row);
+                    });
+
+                    table.appendChild(tbody);
+                    wrapper.appendChild(table);
+                    detailEl.appendChild(wrapper);
+
+                    tbody.querySelectorAll('[data-role="pool-preview"]').forEach(btn => {
+                        btn.addEventListener('click', () => openPreview(btn.dataset.content, btn.dataset.label));
+                    });
+
+                    const actions = document.createElement('div');
+                    actions.className = 'd-flex justify-content-between align-items-center mt-3';
+                    const note = document.createElement('small');
+                    note.className = 'text-muted';
+                    note.textContent = 'Randomize will create a new Eisa tool from this module and letter. Ensure all question numbers are captured.';
+                    const randomizeBtn = document.createElement('button');
+                    randomizeBtn.type = 'button';
+                    randomizeBtn.className = 'btn btn-primary';
+                    randomizeBtn.textContent = 'Randomize From This Pool';
+                    randomizeBtn.addEventListener('click', () => runRandomize(tile));
+                    actions.appendChild(note);
+                    actions.appendChild(randomizeBtn);
+                    detailEl.appendChild(actions);
+                };
+
+                const activateTile = (tile, button) => {
+                    gridEl.querySelectorAll('.pool-tile').forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+                    activeTile = tile;
+                    renderDetail(tile);
+                };
+
+                const renderTiles = (tileList) => {
+                    gridEl.innerHTML = '';
+                    detailEl.innerHTML = '';
+                    activeTile = null;
+
+                    if (!tileList.length) {
+                        setStatus('No pools match this filter. Capture blocks in the extractor to build the pool.', 'warning');
+                        return;
+                    }
+
+                    setStatus('', 'info');
+
+                    tileList.forEach(tile => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'pool-tile';
+                        btn.innerHTML = `
                     <div class="pool-tile-module">${escapeHtml(tile.module)}</div>
                     <div class="pool-tile-letter">${escapeHtml(tile.letter)}</div>
                     <div class="pool-tile-count">${tile.count} block${tile.count === 1 ? '' : 's'}</div>`;
-                btn.addEventListener('click', () => activateTile(tile, btn));
-                gridEl.appendChild(btn);
-            });
+                        btn.addEventListener('click', () => activateTile(tile, btn));
+                        gridEl.appendChild(btn);
+                    });
 
-            const firstTile = gridEl.querySelector('.pool-tile');
-            if (firstTile) {
-                firstTile.click();
-            }
-        };
-
-const populateModuleSelect = () => {
-    if (!moduleSelect) return;
-    
-    // Get user's qualification
-    const userQualification = document.body.getAttribute('data-user-qualification') || 
-                             document.querySelector('.welcome-box .date strong')?.textContent?.trim() || 
-                             '';
-    
-    const modules = rawModules.map(mod => mod.name || 'Unknown Module').sort((a, b) => a.localeCompare(b));
-    const unique = Array.from(new Set(modules));
-    
-    moduleSelect.innerHTML = '';
-    
-    if (unique.length > 0) {
-        let selectedModule = unique[0]; // Default
-        
-        // Only try to match if we have a qualification
-        if (userQualification && userQualification !== "Not Assigned") {
-            // Clean qualification name (remove extra text)
-            const cleanQualification = userQualification.replace(/Qualification[:]?\s*/i, '').trim();
-            
-            // Try exact match first
-            const exactMatch = unique.find(name => 
-                name.toLowerCase() === cleanQualification.toLowerCase()
-            );
-            
-            if (exactMatch) {
-                selectedModule = exactMatch;
-            } else {
-                // Try partial match
-                const partialMatch = unique.find(name => 
-                    name.toLowerCase().includes(cleanQualification.toLowerCase()) ||
-                    cleanQualification.toLowerCase().includes(name.toLowerCase())
-                );
-                
-                if (partialMatch) {
-                    selectedModule = partialMatch;
-                } else {
-                    // Try word-based matching
-                    const qualificationWords = cleanQualification.toLowerCase().split(/\s+/).filter(w => w.length > 3);
-                    for (const moduleName of unique) {
-                        const moduleLower = moduleName.toLowerCase();
-                        if (qualificationWords.some(word => moduleLower.includes(word))) {
-                            selectedModule = moduleName;
-                            break;
-                        }
+                    const firstTile = gridEl.querySelector('.pool-tile');
+                    if (firstTile) {
+                        firstTile.click();
                     }
-                }
-            }
-        }
-        
-        // Create options
-        unique.forEach(name => {
-            const opt = document.createElement('option');
-            opt.value = name;
-            opt.textContent = name;
-            opt.selected = (name === selectedModule);
-            moduleSelect.appendChild(opt);
-        });
-        
-        // Set the selected value
-        moduleSelect.value = selectedModule;
-        
-        // If qualification was used to select, disable the dropdown
-        if (userQualification && userQualification !== "Not Assigned") {
-            moduleSelect.disabled = true;
-            moduleSelect.style.backgroundColor = '#f8f9fa';
-            moduleSelect.style.cursor = 'not-allowed';
-            setStatus(`Showing pool for your qualification: ${selectedModule}`, 'info');
-        } else {
-            setStatus(`Selected: ${selectedModule} (No specific qualification found)`, 'info');
-        }
-        
-        // Render tiles for the selected module
-        const filtered = getFilteredTiles();
-        renderTiles(filtered);
-        
-    } else {
-        // No modules
-        const noModulesOption = document.createElement('option');
-        noModulesOption.value = '';
-        noModulesOption.textContent = 'No modules found';
-        noModulesOption.disabled = true;
-        noModulesOption.selected = true;
-        moduleSelect.appendChild(noModulesOption);
-        moduleSelect.disabled = true;
-        setStatus('No pool data available. Please upload assessments first.', 'warning');
-    }
-};
+                };
 
-        const populateLetterSelect = () => {
-            if (!letterSelect) return;
-            const currentModule = moduleSelect?.value || '';
-            const letters = new Set();
-            rawModules.forEach(mod => {
-                if (currentModule && (mod.name || 'Unknown Module') !== currentModule) return;
-                (mod.letters || []).forEach(letter => {
-                    const val = (letter.letter || '').toUpperCase();
-                    if (val) letters.add(val);
+                const populateModuleSelect = () => {
+                    if (!moduleSelect) return;
+
+                    // Get user's qualification
+                    const userQualification = document.body.getAttribute('data-user-qualification') ||
+                        document.querySelector('.welcome-box .date strong')?.textContent?.trim() ||
+                        '';
+
+                    const modules = rawModules.map(mod => mod.name || 'Unknown Module').sort((a, b) => a.localeCompare(b));
+                    const unique = Array.from(new Set(modules));
+
+                    moduleSelect.innerHTML = '';
+
+                    if (unique.length > 0) {
+                        let selectedModule = unique[0]; // Default
+
+                        // Only try to match if we have a qualification
+                        if (userQualification && userQualification !== "Not Assigned") {
+                            // Clean qualification name (remove extra text)
+                            const cleanQualification = userQualification.replace(/Qualification[:]?\s*/i, '').trim();
+
+                            // Try exact match first
+                            const exactMatch = unique.find(name =>
+                                name.toLowerCase() === cleanQualification.toLowerCase()
+                            );
+
+                            if (exactMatch) {
+                                selectedModule = exactMatch;
+                            } else {
+                                // Try partial match
+                                const partialMatch = unique.find(name =>
+                                    name.toLowerCase().includes(cleanQualification.toLowerCase()) ||
+                                    cleanQualification.toLowerCase().includes(name.toLowerCase())
+                                );
+
+                                if (partialMatch) {
+                                    selectedModule = partialMatch;
+                                } else {
+                                    // Try word-based matching
+                                    const qualificationWords = cleanQualification.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+                                    for (const moduleName of unique) {
+                                        const moduleLower = moduleName.toLowerCase();
+                                        if (qualificationWords.some(word => moduleLower.includes(word))) {
+                                            selectedModule = moduleName;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Create options
+                        unique.forEach(name => {
+                            const opt = document.createElement('option');
+                            opt.value = name;
+                            opt.textContent = name;
+                            opt.selected = (name === selectedModule);
+                            moduleSelect.appendChild(opt);
+                        });
+
+                        // Set the selected value
+                        moduleSelect.value = selectedModule;
+
+                        // If qualification was used to select, disable the dropdown
+                        if (userQualification && userQualification !== "Not Assigned") {
+                            moduleSelect.disabled = true;
+                            moduleSelect.style.backgroundColor = '#f8f9fa';
+                            moduleSelect.style.cursor = 'not-allowed';
+                            setStatus(`Showing pool for your qualification: ${selectedModule}`, 'info');
+                        } else {
+                            setStatus(`Selected: ${selectedModule} (No specific qualification found)`, 'info');
+                        }
+
+                        // Render tiles for the selected module
+                        const filtered = getFilteredTiles();
+                        renderTiles(filtered);
+
+                    } else {
+                        // No modules
+                        const noModulesOption = document.createElement('option');
+                        noModulesOption.value = '';
+                        noModulesOption.textContent = 'No modules found';
+                        noModulesOption.disabled = true;
+                        noModulesOption.selected = true;
+                        moduleSelect.appendChild(noModulesOption);
+                        moduleSelect.disabled = true;
+                        setStatus('No pool data available. Please upload assessments first.', 'warning');
+                    }
+                };
+
+                const populateLetterSelect = () => {
+                    if (!letterSelect) return;
+                    const currentModule = moduleSelect?.value || '';
+                    const letters = new Set();
+                    rawModules.forEach(mod => {
+                        if (currentModule && (mod.name || 'Unknown Module') !== currentModule) return;
+                        (mod.letters || []).forEach(letter => {
+                            const val = (letter.letter || '').toUpperCase();
+                            if (val) letters.add(val);
+                        });
+                    });
+                    const sortedLetters = Array.from(letters).sort();
+                    const currentLetter = letterSelect.value;
+                    letterSelect.innerHTML = '';
+                    const allOption = document.createElement('option');
+                    allOption.value = '';
+                    allOption.textContent = 'All letters';
+                    letterSelect.appendChild(allOption);
+                    sortedLetters.forEach(letter => {
+                        const opt = document.createElement('option');
+                        opt.value = letter;
+                        opt.textContent = letter;
+                        if (currentLetter && currentLetter === letter) {
+                            opt.selected = true;
+                        }
+                        letterSelect.appendChild(opt);
+                    });
+                };
+
+                const getFilteredTiles = () => {
+                    const moduleVal = moduleSelect?.value || '';
+                    const letterVal = (letterSelect?.value || '').toUpperCase();
+                    return tiles.filter(tile => {
+                        if (moduleVal && tile.module !== moduleVal) return false;
+                        if (letterVal && tile.letter !== letterVal) return false;
+                        return true;
+                    });
+                };
+
+                const fetchData = async () => {
+                    gridEl.innerHTML = '';
+                    detailEl.innerHTML = '';
+                    setStatus('Loading pool entries…', 'info');
+                    try {
+                        const response = await fetch(endpoint, { credentials: 'same-origin' });
+                        if (!response.ok) throw new Error('Request failed');
+                        const data = await response.json();
+                        rawModules = data.modules || [];
+                        tiles = buildTiles(rawModules);
+                        populateModuleSelect();
+                        populateLetterSelect();
+                        const filtered = getFilteredTiles();
+                        if (!tiles.length) {
+                            setStatus('No captured blocks found yet. Capture boxes in the extractor to build the pool.', 'warning');
+                            return;
+                        }
+                        renderTiles(filtered);
+                    } catch (err) {
+                        console.error(err);
+                        setStatus('Failed to load pool data. Please try again.', 'danger');
+                    }
+                };
+
+                modalEl.addEventListener('show.bs.modal', () => {
+                    if (!rawModules.length) {
+                        fetchData();
+                    }
                 });
-            });
-            const sortedLetters = Array.from(letters).sort();
-            const currentLetter = letterSelect.value;
-            letterSelect.innerHTML = '';
-            const allOption = document.createElement('option');
-            allOption.value = '';
-            allOption.textContent = 'All letters';
-            letterSelect.appendChild(allOption);
-            sortedLetters.forEach(letter => {
-                const opt = document.createElement('option');
-                opt.value = letter;
-                opt.textContent = letter;
-                if (currentLetter && currentLetter === letter) {
-                    opt.selected = true;
-                }
-                letterSelect.appendChild(opt);
-            });
-        };
 
-        const getFilteredTiles = () => {
-            const moduleVal = moduleSelect?.value || '';
-            const letterVal = (letterSelect?.value || '').toUpperCase();
-            return tiles.filter(tile => {
-                if (moduleVal && tile.module !== moduleVal) return false;
-                if (letterVal && tile.letter !== letterVal) return false;
-                return true;
-            });
-        };
+                refreshBtn?.addEventListener('click', () => {
+                    rawModules = [];
+                    tiles = [];
+                    fetchData();
+                });
 
-        const fetchData = async () => {
-            gridEl.innerHTML = '';
-            detailEl.innerHTML = '';
-            setStatus('Loading pool entries…', 'info');
-            try {
-                const response = await fetch(endpoint, { credentials: 'same-origin' });
-                if (!response.ok) throw new Error('Request failed');
-                const data = await response.json();
-                rawModules = data.modules || [];
-                tiles = buildTiles(rawModules);
-                populateModuleSelect();
-                populateLetterSelect();
-                const filtered = getFilteredTiles();
-                if (!tiles.length) {
-                    setStatus('No captured blocks found yet. Capture boxes in the extractor to build the pool.', 'warning');
-                    return;
-                }
-                renderTiles(filtered);
-            } catch (err) {
-                console.error(err);
-                setStatus('Failed to load pool data. Please try again.', 'danger');
+                moduleSelect?.addEventListener('change', () => {
+                    populateLetterSelect();
+                    if (!tiles.length) return;
+                    renderTiles(getFilteredTiles());
+                });
+
+                letterSelect?.addEventListener('change', () => {
+                    if (!tiles.length) return;
+                    renderTiles(getFilteredTiles());
+                });
+            })();
+        });
+
+        // Celebration animation
+        function triggerCelebration() {
+            const container = document.getElementById('confettiContainer');
+            if (!container) return;
+
+            container.style.display = 'block';
+
+            for (let i = 0; i < 100; i++) {
+                createConfetti();
             }
-        };
 
-        modalEl.addEventListener('show.bs.modal', () => {
-            if (!rawModules.length) {
-                fetchData();
-            }
-        });
+            setTimeout(() => {
+                container.style.display = 'none';
+                container.innerHTML = '';
+            }, 3000);
+        }
 
-        refreshBtn?.addEventListener('click', () => {
-            rawModules = [];
-            tiles = [];
-            fetchData();
-        });
+        function createConfetti() {
+            const container = document.getElementById('confettiContainer');
+            if (!container) return;
 
-        moduleSelect?.addEventListener('change', () => {
-            populateLetterSelect();
-            if (!tiles.length) return;
-            renderTiles(getFilteredTiles());
-        });
+            const confetti = document.createElement('div');
+            confetti.className = 'confetti';
 
-        letterSelect?.addEventListener('change', () => {
-            if (!tiles.length) return;
-            renderTiles(getFilteredTiles());
-        });
-    })();
-});
+            const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722'];
+            const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
-// Celebration animation
-function triggerCelebration() {
-    const container = document.getElementById('confettiContainer');
-    if (!container) return;
-    
-    container.style.display = 'block';
+            confetti.style.backgroundColor = randomColor;
+            confetti.style.left = Math.random() * 100 + 'vw';
+            confetti.style.top = -10 + 'px';
+            confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
 
-    for (let i = 0; i < 100; i++) {
-        createConfetti();
-    }
+            const animation = confetti.animate([
+                { top: '-10px', opacity: 1, transform: `rotate(0deg) scale(1)` },
+                { top: '100vh', opacity: 0, transform: `rotate(${Math.random() * 360}deg) scale(0.5)` }
+            ], {
+                duration: 3000,
+                easing: 'cubic-bezier(0.1, 0.8, 0.9, 1)'
+            });
 
-    setTimeout(() => {
-        container.style.display = 'none';
-        container.innerHTML = '';
-    }, 3000);
-}
+            container.appendChild(confetti);
 
-function createConfetti() {
-    const container = document.getElementById('confettiContainer');
-    if (!container) return;
-    
-    const confetti = document.createElement('div');
-    confetti.className = 'confetti';
-
-    const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722'];
-    const randomColor = colors[Math.floor(Math.random() * colors.length)];
-
-    confetti.style.backgroundColor = randomColor;
-    confetti.style.left = Math.random() * 100 + 'vw';
-    confetti.style.top = -10 + 'px';
-    confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
-
-    const animation = confetti.animate([
-        { top: '-10px', opacity: 1, transform: `rotate(0deg) scale(1)` },
-        { top: '100vh', opacity: 0, transform: `rotate(${Math.random() * 360}deg) scale(0.5)` }
-    ], {
-        duration: 3000,
-        easing: 'cubic-bezier(0.1, 0.8, 0.9, 1)'
-    });
-
-    container.appendChild(confetti);
-
-    animation.onfinish = () => {
-        confetti.remove();
-    };
-}
+            animation.onfinish = () => {
+                confetti.remove();
+            };
+        }
     </script>
 </body>
 

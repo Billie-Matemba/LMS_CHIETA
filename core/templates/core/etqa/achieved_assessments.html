@@ -570,7 +570,7 @@
 
         <!-- Main Content -->
         <div class="content">
-      
+
             <!-- Welcome Box -->
             <div class="welcome-container">
                 <div class="image-container">
@@ -651,13 +651,14 @@
                                                 <i class="fas fa-download"></i> Download Paper
                                             </a>
                                             {% else %}
-                                            <span class="text-muted small">No paper available</span>
+                                            <span class="text-muted small">No Eisa Tool available</span>
                                             {% endif %}
                                         </div>
                                     </td>
 
                                     <td>
-                                        <span class="badge {% if a.status == 'Released to students' %}bg-success{% elif a.status == 'Submitted to ETQA' %}bg-warning{% else %}bg-info{% endif %}">
+                                        <span
+                                            class="badge {% if a.status == 'Released to students' %}bg-success{% elif a.status == 'Submitted to ETQA' %}bg-warning{% else %}bg-info{% endif %}">
                                             {{ a.status }}
                                         </span>
                                     </td>
