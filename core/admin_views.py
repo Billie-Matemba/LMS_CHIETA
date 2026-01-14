@@ -959,6 +959,59 @@ def administrator_paperbank(request):
 def administrator_uploads(request):
     # Get papers that have been uploaded but not yet extracted
     uploads = Assessment.objects.filter(
-        file__isnull=False,
-        paper_link__isnull=True  # Not linked to extracted paper yet
+        file__isnull=False
     ).select_related("qualification").order_by("-created_at")
+    
+    all_users = CustomUser.objects.filter(is_active=True).order_by("first_name", "last_name")
+    
+    return render(
+        request,
+        "core/administrator/uploads.html",
+        {
+            "uploads": uploads,
+            "all_users": all_users,
+            "active_page": "uploads",
+        },
+    )
+
+
+@login_required
+def forward_upload(request, upload_id):
+    """Forward an uploaded assessment to a specific user"""
+    if request.method != "POST":
+        return redirect("administrator_uploads")
+    
+    try:
+        upload = Assessment.objects.get(pk=upload_id)
+        assigned_to_id = request.POST.get("assigned_to")
+        note = request.POST.get("note", "").strip()
+        
+        if not assigned_to_id:
+            messages.error(request, "Please select a user to forward to.")
+            return redirect("administrator_uploads")
+        
+        assigned_to = CustomUser.objects.get(pk=assigned_to_id)
+        
+        # Log the forward action (you can create a model for this if needed)
+        # For now, we'll just update the Assessment with a comment
+        original_comment = upload.comment or ""
+        forward_log = f"Forwarded to {assigned_to.get_full_name()} on {timezone.now().strftime('%Y-%m-%d %H:%M')}"
+        if note:
+            forward_log += f" - Note: {note}"
+        
+        upload.comment = f"{original_comment}\n[{forward_log}]".strip()
+        upload.save(update_fields=["comment"])
+        
+        messages.success(
+            request, 
+            f"Upload forwarded to {assigned_to.get_full_name()} successfully."
+        )
+        
+    except Assessment.DoesNotExist:
+        messages.error(request, "Upload not found.")
+    except CustomUser.DoesNotExist:
+        messages.error(request, "User not found.")
+    except Exception as e:
+        messages.error(request, f"An error occurred: {str(e)}")
+    
+    return redirect("administrator_uploads")

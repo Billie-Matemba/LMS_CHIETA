@@ -1,0 +1,69 @@
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block title %}Uploaded Papers - Administrator{% endblock %}
+
+{% block extra_css %}
+<style>
+    .uploads-table {
+        font-size: 0.95rem;
+    }
+    
+    .btn-group-sm .btn {
+        padding: 0.375rem 0.625rem;
+        font-size: 0.85rem;
+    }
+    
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <div>
+                    <h1 class="mb-0"><i class="fas fa-file-upload me-2"></i>Uploaded Papers</h1>
+                    <p class="text-muted mb-0">Track and manage raw Word document uploads before extraction</p>
+                </div>
+            </div>
+
+            <!-- Messages -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- Uploads Table Card -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>All Uploads</h5>
+                </div>
+                
+                {% include "partials/uploads_table.html" with uploads=uploads %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto-dismiss alerts after 5 seconds
+    document.querySelectorAll('.alert').forEach(alert => {
+        setTimeout(() => {
+            const bsAlert = new bootstrap.Alert(alert);
+            bsAlert.close();
+        }, 5000);
+    });
+</script>
+{% endblock %}
