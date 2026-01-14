@@ -38,14 +38,13 @@ from .models import (
 )
 
 PASS_THRESHOLD = 0.5  # 50% cutoff for pass-rate metrics
+#Needs to match actual status 
 COMPLETED_STATUSES = {
-    "moderated",
-    "etqa_approved",
-    "qcto_approved",
+    "Approved by ETQA",
     "Released to students",
-    "archived",
+    "Moderated",
+    "Approved",
 }
-
 COUNTRY_ALIASES = {
     "usa": "United States",
     "u.s.a": "United States",
@@ -688,6 +687,7 @@ def administrator_analytics_dashboard(request):
             "learners": row["total"],
         }
         for row in enrollment_rows
+        if row["qualification__name"]
     ][:12]
 
     learners_map = {
@@ -791,6 +791,11 @@ def administrator_analytics_dashboard(request):
     context.update(global_context)
     context["active_tab"] = active_tab
     context["request"] = request
+    # Around line 760, BEFORE the return statement
+    print(f"[DEBUG] pass_rate_data: {pass_rate_data}")
+    print(f"[DEBUG] completion_trend_data: {completion_trend_data}")
+    print(f"[DEBUG] assessment_type_breakdown: {assessment_type_breakdown}")
+    print(f"[DEBUG] enrollment_by_course_data: {enrollment_by_course_data}")
     return render(request, "core/administrator/dashboards.html", context)
 
 
@@ -851,48 +856,47 @@ def global_business_upload_dashboard(request):
 @login_required
 def administrator_paperbank(request):
     qualification_id = _safe_int(request.GET.get("qualification"))
-    paper_type = request.GET.get("paper_type") or ""
     status_filter = request.GET.get("status") or ""
     query = (request.GET.get("q") or "").strip()
 
-    entries_qs = PaperBankEntry.objects.select_related(
-        "assessment",
-        "assessment__qualification",
-        "assessment__paper_link",
-        "assessment__paper_link__created_by",
+    # Query Assessment objects that have valid paper_link (Paper model) references
+    # This replaces the empty PaperBankEntry table with actual data
+    entries_qs = Assessment.objects.filter(
+        paper_link__isnull=False
+    ).select_related(
+        "qualification",
+        "paper_link",
+        "paper_link__created_by",
     ).order_by("-created_at")
 
     if qualification_id:
-        entries_qs = entries_qs.filter(assessment__qualification_id=qualification_id)
-
-    if paper_type:
-        entries_qs = entries_qs.filter(assessment__paper_type=paper_type)
+        entries_qs = entries_qs.filter(paper_link__qualification_id=qualification_id)
 
     if status_filter:
-        entries_qs = entries_qs.filter(assessment__status=status_filter)
+        entries_qs = entries_qs.filter(status=status_filter)
 
     if query:
         entries_qs = entries_qs.filter(
-            Q(assessment__eisa_id__icontains=query)
-            | Q(assessment__paper__icontains=query)
+            Q(eisa_id__icontains=query)
+            | Q(paper_link__name__icontains=query)
+            | Q(paper__icontains=query)
         )
 
     total_entries = entries_qs.count()
     aggregates = entries_qs.aggregate(
         randomized_entries=Count(
             "id",
-            filter=Q(assessment__paper_link__is_randomized=True)
-            | Q(assessment__paper_type="randomized"),
+            filter=Q(paper_link__is_randomized=True),
         ),
         memos_available=Count(
             "id",
-            filter=Q(assessment__memo__isnull=False)
-            | Q(assessment__memo_file__isnull=False),
+            filter=Q(memo__isnull=False)
+            | Q(memo_file__isnull=False),
         ),
         latest_upload_at=Max("created_at"),
         average_total_marks=Avg(
-            "assessment__paper_link__total_marks",
-            filter=Q(assessment__paper_link__total_marks__isnull=False),
+            "paper_link__total_marks",
+            filter=Q(paper_link__total_marks__gt=0),
             output_field=FloatField(),
         ),
     )
@@ -918,20 +922,21 @@ def administrator_paperbank(request):
         .annotate(count=Count("id"))
         .order_by("month")
     )
-    uploads_by_month = [
-        {"label": _localize(row["month"]).strftime("%b %Y"), "count": row["count"]}
-        for row in uploads_by_month_rows
-        if row["month"]
-    ]
+    uploads_by_month = []
+    for row in uploads_by_month_rows:
+        if row["month"]:
+            localized = _localize(row["month"])
+            label = localized.strftime("%b %Y") if localized else "Unknown"
+            uploads_by_month.append({"label": label, "count": row["count"]})
 
     distribution_rows = (
-        entries_qs.values("assessment__qualification__name")
+        entries_qs.values("paper_link__qualification__name")
         .annotate(count=Count("id"))
-        .order_by("-count", "assessment__qualification__name")
+        .order_by("-count", "paper_link__qualification__name")
     )
     paperbank_distribution = [
         {
-            "qualification": row["assessment__qualification__name"] or "Unassigned",
+            "qualification": row["paper_link__qualification__name"] or "Unassigned",
             "count": row["count"],
         }
         for row in distribution_rows
@@ -949,3 +954,11 @@ def administrator_paperbank(request):
     }
     context["request"] = request
     return render(request, "core/administrator/paperbank.html", context)
+
+
+def administrator_uploads(request):
+    # Get papers that have been uploaded but not yet extracted
+    uploads = Assessment.objects.filter(
+        file__isnull=False,
+        paper_link__isnull=True  # Not linked to extracted paper yet
+    ).select_related("qualification").order_by("-created_at")

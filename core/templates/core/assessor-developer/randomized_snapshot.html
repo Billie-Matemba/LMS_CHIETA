@@ -390,7 +390,8 @@
         available.
         <div class="small text-muted">Paper ID {{ created_snapshot_details.paper_id|default:paper.id }} | Marks {{
           created_snapshot_details.marks|default:paper.total_marks|default:'0' }} | Pool size {{
-          created_snapshot_details.pool|default:random_meta.snapshot_pool_size|default:'0' }} | Total randomized Eisa Tool
+          created_snapshot_details.pool|default:random_meta.snapshot_pool_size|default:'0' }} | Total randomized Eisa
+          Tool
           {{ snapshots_total }}</div>
       </div>
       <div class="d-flex gap-2">
@@ -400,7 +401,7 @@
     </div>
     {% endif %}
     <div class="mb-3">
-      <a href="{% url 'assessor_developer' %}" class="text-decoration-none">&larr; Back to Assessor Developer</a>
+      <!-- <a href="{% url 'assessor_developer' %}" class="text-decoration-none">&larr; Back to Assessor Developer</a> -->
     </div>
 
     <div class="snapshot-card">
@@ -452,8 +453,7 @@
           <select id="snapshot-switch" class="form-select form-select-sm">
             <option value="">Current Eisa Tool</option>
             {% for snap in randomized_snapshots %}
-            <option value="{% url 'assessor_randomized_snapshot' snap.id %}" {% if snap.id==assessment.id %}selected{%
-              endif %}>{{ snap.eisa_id }} - {{ snap.paper }}</option>
+            <option value="{% url 'assessor_randomized_snapshot' snap.id %}" {% if snap.id == assessment.id %}selected{% endif %}>{{ snap.eisa_id }} - {{ snap.paper }}</option>
 
             {% endfor %}
           </select>
@@ -490,7 +490,7 @@
       <div class="row mt-3 g-3">
         <div class="col-md-8">
           <dl class="row mb-0">
-            <dt class="col-sm-4">Paper name</dt>
+            <dt class="col-sm-4">Eisa Tool name</dt>
             <dd class="col-sm-8">{{ assessment.paper }}</dd>
             <dt class="col-sm-4">Created</dt>
             <dd class="col-sm-8">{{ assessment.created_at|date:"M j, Y H:i" }}</dd>
@@ -700,7 +700,7 @@
     </div>
     {% else %}
     <div class="snapshot-card">
-      <h4 class="mb-3">Reconstructed Paper</h4>
+      <h4 class="mb-3">Reconstructed Eisa Tool</h4>
       <p class="text-muted mb-0">This randomized Eisa Tool does not have an attached reconstructed Eisa Tool yet.</p>
     </div>
     {% endif %}

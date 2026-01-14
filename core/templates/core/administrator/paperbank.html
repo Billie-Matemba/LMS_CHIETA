@@ -428,12 +428,14 @@ button:hover {
 
 .card-body {
     padding: 1rem 1.5rem 1.5rem;
+    max-height: 450px;
+    overflow-y: auto;
 }
 
 .chart-canvas {
     width: 100%;
-    height: 100%;
-    min-height: 260px;
+    height: 350px;
+    max-height: 350px;
 }
 
 .chart-empty {
@@ -589,7 +591,8 @@ button:hover {
     }
 
     .chart-canvas {
-        min-height: 220px;
+        height: 300px;
+        max-height: 300px;
     }
 }
 
@@ -827,37 +830,37 @@ button:hover {
                                     {% for entry in paper_bank_entries %}
                                         <tr>
                                             <td class="ps-4">
-                                                <div class="fw-semibold">{{ entry.assessment.paper }}</div>
-                                                <div class="text-muted small">{{ entry.assessment.eisa_id }}</div>
+                                                <div class="fw-semibold">{{ entry.paper }}</div>
+                                                <div class="text-muted small">{{ entry.eisa_id }}</div>
                                             </td>
                                             <td>
-                                                {{ entry.assessment.qualification.name|default:"-" }}
+                                                {{ entry.qualification.name|default:"-" }}
                                             </td>
                                             <td>
-                                                <span class="badge bg-light text-dark border">{{ entry.assessment.get_paper_type_display }}</span>
-                                                {% if entry.assessment.paper_link and entry.assessment.paper_link.is_randomized %}
+                                                <span class="badge bg-light text-dark border">{{ entry.get_paper_type_display }}</span>
+                                                {% if entry.paper_link and entry.paper_link.is_randomized %}
                                                     <span class="badge bg-warning text-dark ms-1">Randomized</span>
                                                 {% endif %}
                                             </td>
                                             <td>
-                                                <span class="badge bg-secondary">{{ entry.assessment.get_status_display|default:entry.assessment.status }}</span>
+                                                <span class="badge bg-secondary">{{ entry.get_status_display|default:entry.status }}</span>
                                             </td>
                                             <td>
                                                 {{ entry.created_at|date:"Y-m-d" }}
                                             </td>
                                             <td>
                                                 <div class="link-stack d-flex flex-column gap-1">
-                                                    {% if entry.original_file %}
-                                                        <a href="{{ entry.original_file.url }}" class="btn btn-outline-primary btn-sm">
+                                                    {% if entry.file %}
+                                                        <a href="{{ entry.file.url }}" class="btn btn-outline-primary btn-sm">
                                                             <i class="fas fa-file-download me-1"></i>Download paper
                                                         </a>
                                                     {% endif %}
-                                                    {% if entry.assessment.memo %}
-                                                        <a href="{{ entry.assessment.memo.url }}" class="btn btn-outline-secondary btn-sm">
+                                                    {% if entry.memo %}
+                                                        <a href="{{ entry.memo.url }}" class="btn btn-outline-secondary btn-sm">
                                                             <i class="fas fa-scroll me-1"></i>Memo (admin upload)
                                                         </a>
-                                                    {% elif entry.assessment.memo_file %}
-                                                        <a href="{{ entry.assessment.memo_file.url }}" class="btn btn-outline-secondary btn-sm">
+                                                    {% elif entry.memo_file %}
+                                                        <a href="{{ entry.memo_file.url }}" class="btn btn-outline-secondary btn-sm">
                                                             <i class="fas fa-scroll me-1"></i>Memo (randomized)
                                                         </a>
                                                     {% else %}
@@ -877,19 +880,19 @@ button:hover {
                                                             <h6 class="detail-heading">Paper</h6>
                                                             <dl class="detail-list">
                                                                 <dt>Qualification</dt>
-                                                                <dd>{{ entry.assessment.qualification.name|default:"-" }}</dd>
+                                                                <dd>{{ entry.qualification.name|default:"-" }}</dd>
                                                                 <dt>Total marks</dt>
                                                                 <dd>
-                                                                    {% if entry.assessment.paper_link %}
-                                                                        {{ entry.assessment.paper_link.total_marks|default:"-" }}
+                                                                    {% if entry.paper_link %}
+                                                                        {{ entry.paper_link.total_marks|default:"-" }}
                                                                     {% else %}
                                                                         <span class="text-muted">-</span>
                                                                     {% endif %}
                                                                 </dd>
                                                                 <dt>Created by</dt>
                                                                 <dd>
-                                                                    {% if entry.assessment.paper_link and entry.assessment.paper_link.created_by %}
-                                                                        {{ entry.assessment.paper_link.created_by.get_full_name|default:entry.assessment.paper_link.created_by.username }}
+                                                                    {% if entry.paper_link and entry.paper_link.created_by %}
+                                                                        {{ entry.paper_link.created_by.get_full_name|default:entry.paper_link.created_by.username }}
                                                                     {% else %}
                                                                         <span class="text-muted">-</span>
                                                                     {% endif %}
@@ -900,11 +903,11 @@ button:hover {
                                                             <h6 class="detail-heading">Workflow</h6>
                                                             <dl class="detail-list">
                                                                 <dt>Status</dt>
-                                                                <dd>{{ entry.assessment.get_status_display|default:entry.assessment.status }}</dd>
+                                                                <dd>{{ entry.get_status_display|default:entry.status }}</dd>
                                                                 <dt>Moderator</dt>
-                                                                <dd>{{ entry.assessment.moderator|default:"-" }}</dd>
+                                                                <dd>{{ entry.moderator|default:"-" }}</dd>
                                                                 <dt>Forwarded to moderator</dt>
-                                                                <dd>{{ entry.assessment.forward_to_moderator|yesno:"Yes,No" }}</dd>
+                                                                <dd>{{ entry.forward_to_moderator|yesno:"Yes,No" }}</dd>
                                                             </dl>
                                                         </div>
                                                         <div class="col-md-4">
@@ -912,14 +915,14 @@ button:hover {
                                                             <dl class="detail-list">
                                                                 <dt>Comments</dt>
                                                                 <dd>
-                                                                    {% if entry.assessment.comment %}
-                                                                        {{ entry.assessment.comment }}
+                                                                    {% if entry.comment %}
+                                                                        {{ entry.comment }}
                                                                     {% else %}
                                                                         <span class="text-muted">No comments recorded.</span>
                                                                     {% endif %}
                                                                 </dd>
                                                                 <dt>Last updated</dt>
-                                                                <dd>{{ entry.assessment.updated_at|default:entry.created_at|date:"Y-m-d H:i" }}</dd>
+                                                                <dd>{{ entry.updated_at|default:entry.created_at|date:"Y-m-d H:i" }}</dd>
                                                             </dl>
                                                         </div>
                                                     </div>
@@ -947,7 +950,7 @@ button:hover {
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" integrity="sha384-SSU6RtWLpmjHtkobaN6D+PfYZ7RJJdcXumP5VcwpcKuZ4uiHPcU1CxUPCl995QPu" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" integrity="sha384-Sse/HDqcypGpyTDpvZOJNnG0TT3feGQUkF9H+mnRvic+LjR+K1NhTt8f51KIQ3v3" crossorigin="anonymous"></script>
 {% if uploads_by_month %}
     {{ uploads_by_month|json_script:"uploads-by-month-data" }}
 {% else %}

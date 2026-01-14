@@ -535,12 +535,14 @@ button:hover {
 
 .card-body {
     padding: 1rem 1.5rem 1.5rem;
+    max-height: 450px;
+    overflow-y: auto;
 }
 
 .chart-canvas {
     width: 100%;
-    height: 100%;
-    min-height: 260px;
+    height: 350px;
+    max-height: 350px;
 }
 
 .chart-empty {
@@ -679,7 +681,8 @@ button:hover {
     }
 
     .chart-canvas {
-        min-height: 220px;
+        height: 300px;
+        max-height: 300px;
     }
 }
 
@@ -1209,7 +1212,7 @@ button:hover {
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" integrity="sha384-SSU6RtWLpmjHtkobaN6D+PfYZ7RJJdcXumP5VcwpcKuZ4uiHPcU1CxUPCl995QPu" crossorigin="anonymous"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js" integrity="sha384-Sse/HDqcypGpyTDpvZOJNnG0TT3feGQUkF9H+mnRvic+LjR+K1NhTt8f51KIQ3v3" crossorigin="anonymous"></script>
 {% if pass_rate_data %}
     {{ pass_rate_data|json_script:"pass-rate-data" }}
 {% else %}

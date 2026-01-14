@@ -189,7 +189,9 @@ class Assessment(models.Model):
         ('qcto_rejected', 'QCTO Rejected'),
         ("Released to students", "Released to students"),
         ('active', 'Active'),
-        ('archived', 'Archived')
+        ('archived', 'Archived'),
+        ('QDD Review', 'QDD Review'),
+        
     ]
 
     eisa_id = models.CharField(max_length=50)
