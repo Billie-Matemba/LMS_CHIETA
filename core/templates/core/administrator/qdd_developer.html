@@ -1,0 +1,879 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CHIETA QDD Reviewer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            margin: 0;
+            font-family: Georgia, 'Times New Roman', Times, serif;
+            background-color: #ecf0f1;
+        }
+
+        .dashboard-container {
+            display: flex;
+            flex-direction: row;
+            min-height: 100vh;
+        }
+
+        .sidebar ul li {
+            transition: background-color 0.3s ease;
+            border-top: 1.5px solid #580658;
+            border-radius: 10px;
+            color: #580658;
+        }
+
+        .fixy {
+            border-color: #ffffff;
+            width: 100%;
+            height: 40px;
+            color: whitesmoke;
+            border-radius: 10px;
+            margin-bottom: -2px;
+            background-color: #8f6620;
+        }
+
+        .fix {
+            width: 100%;
+            height: 40px;
+            border-radius: 10px;
+            color: whitesmoke;
+            border-color: #f9f9f9;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: none;
+        }
+
+        button:hover {
+            background-color: #ffffff;
+            color: #4d4747;
+            border-color: #007BFF;
+        }
+
+        .sidebar ul li:hover {
+            background-color: #8f6620;
+            color: white;
+            cursor: pointer;
+            border-radius: 10px;
+            height: 30px;
+            list-style: none;
+        }
+
+        .nav-item {
+            color: rgb(81, 3, 102);
+            text-decoration: none;
+            transition: color 0.3s;
+            font-size: 16px;
+        }
+
+        .nav-item:hover {
+            color: rgb(249, 249, 249);
+            transition: color 0.3s;
+        }
+
+        .sidebar {
+            width: 210px;
+            min-height: 100vh;
+            font-size: 13px;
+            background: linear-gradient(to bottom, rgb(195, 193, 193), white, rgb(160, 160, 160), rgb(240, 239, 239), rgb(240, 239, 239), rgb(91, 60, 131));
+            padding: 20px;
+            border-radius: 0px 0px 0px 0px;
+            border-right: 1px solid #8f6620;
+            box-shadow: inset 0 -2px 3px rgba(75, 0, 130, 0.7);
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .sidebar .graduate-icon {
+            border-radius: 20px;
+            height: 110px;
+            width: 105px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .sidebar ul {
+            list-style-type: none;
+            padding: 0;
+        }
+
+        .sidebar ul li {
+            margin: 20px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .sidebar ul li i {
+            margin-right: 10px;
+        }
+
+        .content {
+            flex-grow: 1;
+            padding: 20px;
+            margin-left: 240px;
+            width: calc(100% - 240px);
+        }
+
+        .topbar {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .topbar input[type="search"] {
+            padding: 10px;
+            width: 70%;
+            border-radius: 20px;
+            border: 1px solid #ccc;
+        }
+
+        .welcome-box {
+            background: linear-gradient(to right, white, rgb(215, 213, 213), rgb(240, 239, 239), rgb(91, 60, 131));
+            background-size: cover;
+            background-position: center;
+            padding: 20px;
+            margin-top: 20px;
+            font-size: 20px;
+            font-weight: bold;
+            color: #4d4747;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            text-align: left;
+            min-height: 25vh;
+            position: relative;
+            border-left: 4px solid rgb(81, 3, 102);
+        }
+
+        .welcome-box .date {
+            font-size: 14px;
+            margin-top: 5px;
+            font-weight: normal;
+        }
+
+        .date {
+            font-size: 16px;
+            color: grey;
+        }
+
+        .gradient-button {
+            background-color: #3a063a;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            padding: 10px 20px;
+            font-size: 12px;
+            margin-top: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .gradient-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+            background-color: #8f6620;
+        }
+
+        .highlight {
+            color: red;
+            font-weight: bold;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        .welcome-container {
+            position: relative;
+            margin: 20px;
+        }
+
+        .image-container {
+            position: absolute;
+            top: -37px;
+            right: 0;
+            z-index: 2;
+        }
+
+        /* Tab Navigation */
+        .nav-tabs {
+            border-bottom: 2px solid #3a063a;
+        }
+
+        .nav-tabs .nav-link {
+            color: #3a063a;
+            font-weight: bold;
+            border: none;
+            padding: 12px 20px;
+        }
+
+        .nav-tabs .nav-link.active {
+            background-color: #3a063a;
+            color: white;
+            border: none;
+        }
+
+        .nav-tabs .nav-link:hover {
+            border: none;
+            color: #8f6620;
+        }
+
+        .tab-content {
+            padding: 20px 0;
+        }
+
+        /* Table and grading styles */
+        .grading-cell {
+            min-width: 250px;
+        }
+
+        .feedback-box {
+            max-height: 100px;
+            overflow-y: auto;
+        }
+
+        .badge-count {
+            font-size: 0.7rem;
+            margin-left: 5px;
+        }
+
+        .upload-marked-btn {
+            border-color: #ffc107;
+            color: #856404;
+        }
+
+        .upload-marked-btn:hover {
+            background-color: #ffc107;
+            color: white;
+        }
+
+        .marked-paper-badge {
+            background-color: #17a2b8;
+            color: white;
+        }
+
+        .grade-form {
+            transition: all 0.3s ease;
+        }
+
+        .grade-form:focus-within {
+            box-shadow: 0 0 0 2px rgba(40, 167, 69, 0.25);
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #f8fff9;
+        }
+
+        /* Card and table styling updates */
+        .card {
+            background: linear-gradient(to right, white, rgb(240, 239, 239));
+            border: 1px solid #8f6620;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .table-dark {
+            background: linear-gradient(to right, #3a063a, #580658) !important;
+            color: white;
+        }
+
+        .table-hover tbody tr:hover {
+            background-color: rgba(143, 102, 32, 0.1);
+        }
+
+        .btn-outline-primary {
+            border-color: #3a063a;
+            color: #3a063a;
+        }
+
+        .btn-outline-primary:hover {
+            background-color: #3a063a;
+            color: white;
+        }
+
+        .btn-outline-success {
+            border-color: #8f6620;
+            color: #8f6620;
+        }
+
+        .btn-outline-success:hover {
+            background-color: #8f6620;
+            color: white;
+        }
+
+        .btn-success {
+            background-color: #3a063a;
+            border-color: #3a063a;
+        }
+
+        .btn-success:hover {
+            background-color: #8f6620;
+            border-color: #8f6620;
+        }
+
+        .btn-outline-warning {
+            border-color: #8f6620;
+            color: #8f6620;
+        }
+
+        .btn-outline-warning:hover {
+            background-color: #8f6620;
+            color: white;
+        }
+
+        .badge.bg-primary {
+            background-color: #3a063a !important;
+        }
+
+        .badge.bg-success {
+            background-color: #8f6620 !important;
+        }
+
+        .alert-info {
+            background-color: rgba(143, 102, 32, 0.1);
+            border-color: #8f6620;
+            color: #3a063a;
+        }
+
+        /* Memo button styling */
+        .btn-memo {
+            background-color: #17a2b8;
+            border-color: #17a2b8;
+            color: white;
+        }
+
+        .btn-memo:hover {
+            background-color: #138496;
+            border-color: #117a8b;
+            color: white;
+        }
+
+        .btn-memo-outline {
+            border-color: #17a2b8;
+            color: #17a2b8;
+        }
+
+        .btn-memo-outline:hover {
+            background-color: #17a2b8;
+            color: white;
+        }
+
+        /* Modal styling */
+        .modal-header {
+            background: linear-gradient(to right, #3a063a, #580658);
+            color: white;
+        }
+
+        .modal-content {
+            border: 2px solid #8f6620;
+            border-radius: 10px;
+        }
+
+        /* Celebration animation */
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+        }
+
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            opacity: 0;
+        }
+
+        /* Status badge styling */
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+
+        .moderation-inline-form {
+            align-items: center;
+        }
+
+        @media (max-width: 992px) {
+            .moderation-inline-form {
+                align-items: stretch;
+            }
+        }
+
+        /* Paper View Button Styling */
+        .btn-advanced {
+            background-color: #3a063a;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 6px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-advanced:hover {
+            background-color: #8f6620;
+            transform: translateY(-1px);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .content {
+                margin-left: 220px;
+                width: calc(100% - 220px);
+            }
+
+            .image-container {
+                position: relative;
+                top: 0;
+                margin-bottom: 15px;
+            }
+
+            .welcome-box {
+                height: auto;
+                padding-bottom: 30px;
+            }
+        }
+
+        @media (max-width: 992px) {
+            .sidebar {
+                width: 180px;
+            }
+
+            .content {
+                margin-left: 190px;
+                width: calc(100% - 190px);
+            }
+
+            .image-container img {
+                width: 300px;
+                height: auto;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .dashboard-container {
+                flex-direction: column;
+            }
+
+            .sidebar {
+                position: relative;
+                width: 100%;
+                min-height: auto;
+                height: auto;
+                padding: 10px;
+            }
+
+            .content {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .topbar input[type="search"] {
+                width: 90%;
+            }
+
+            .welcome-box {
+                height: auto;
+                padding: 15px;
+            }
+
+            .image-container {
+                position: relative;
+                top: 0;
+                left: 0;
+                text-align: center;
+            }
+
+            .image-container img {
+                width: 250px;
+                height: auto;
+            }
+
+            .gradient-button {
+                display: flex;
+                justify-content: center;
+                margin-left: 0;
+                align-items: center;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .sidebar {
+                padding: 10px 5px;
+            }
+
+            .sidebar .graduate-icon {
+                width: 80px;
+                height: 80px;
+            }
+
+            .topbar input[type="search"] {
+                width: 80%;
+            }
+
+            .sidebar ul li {
+                margin: 10px 0;
+                justify-content: center;
+            }
+
+            .welcome-box {
+                font-size: 18px;
+                height: auto;
+                padding: 10px;
+            }
+
+            .table-responsive {
+                font-size: 14px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .sidebar {
+                width: 100%;
+                padding: 5px;
+            }
+
+            .sidebar ul li {
+                font-size: 12px;
+            }
+
+            .fixy,
+            .fix {
+                font-size: 12px;
+            }
+
+            .content {
+                padding: 10px;
+            }
+
+            .welcome-box {
+                font-size: 16px;
+            }
+
+            .gradient-button {
+                padding: 8px 15px;
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <div class="sidebar">
+            <div class="graduate-icon">
+                <img src="{% static 'core/images/logo_simplebbbbbbbbbbbbbb.png' %}" alt="CHIETA Logo"
+                    style="width: 130px;">
+            </div>
+            <br><br>
+            <ul>
+                <li class="nav-item">
+                    <a href="{% url 'admin_dashboard' %}"
+                        class="nav-link{% if request.resolver_match.url_name == 'admin_dashboard' %} active{% endif %}"
+                        style="color: inherit; text-decoration: none;">
+                        <i class="fa fa-home me-2"></i>Dashboard
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="{% url 'assessment_centres' %}"
+                        class="nav-link{% if request.resolver_match.url_name == 'assessment_centres' %} active{% endif %}"
+                        style="color: inherit; text-decoration: none;">
+                        <i class="fa fa-upload me-2"></i>Assessment Centres
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="{% url 'user_management' %}"
+                        class="nav-link{% if request.resolver_match.url_name == 'user_management' %} active{% endif %}"
+                        style="color: inherit; text-decoration: none;">
+                        <i class="fa fa-cogs me-2"></i>User Management
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="{% url 'manage_qualifications' %}"
+                        class="nav-link{% if request.resolver_match.url_name == 'manage_qualifications' %} active{% endif %}"
+                        style="color: inherit; text-decoration: none;">
+                        <i class="fa fa-book me-2"></i>Qualifications
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="{% url 'administrator_dashboards' %}"
+                        class="nav-link{% if request.resolver_match.url_name == 'administrator_dashboards' %} active{% endif %}">
+                        <i class="fas fa-chart-line me-2"></i>Analytics
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="{% url 'administrator_paperbank' %}"
+                        class="nav-link{% if request.resolver_match.url_name == 'administrator_paperbank' %} active{% endif %}">
+                        <i class="fas fa-folder-open me-2"></i>Paper Bank
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a href="{% url 'qdd_developer_dashboard' %}"
+                        class="nav-link{% if request.resolver_match.url_name == 'qdd_developer_dashboard' %} active{% endif %}"
+                        style="color: inherit; text-decoration: none;">
+                        <i class="fas fa-clipboard-check me-2"></i>QDD Review
+                    </a>
+                </li>
+
+                <button class="gradient-button w-100 py-0">
+                    <a href="{% url 'logout' %}" class="fix">
+                        <i class="fas fa-sign-out-alt me-1"></i>Log Out
+                    </a>
+                </button>
+            </ul>
+            <img src="{% static 'core/images/rb_2149331949.png' %}" alt="" width="199px">
+        </div>
+
+        <!-- Main Content -->
+        <div class="content">
+         
+            <!-- Welcome Box -->
+            <div class="welcome-container">
+                <div class="image-container">
+                    <!-- <img src="{% static 'core/images/rb_2148892786.png' %}" alt="Profile Picture" width="390px" height="190px"> -->
+                </div>
+                <div class="welcome-box">
+                    <h2><i class="fas fa-clipboard-check me-2"></i> QDD Reviewer</h2>
+                    <div class="date">
+                        Review assessments for Quality Assurance and Curriculum Development.
+                        <br>Forward approved assessments to ETQA or return for further review.
+                        <span class="highlight">Ensure quality and curriculum alignment!</span>
+                        <br>
+                        <div class="date">{{ today|date:"l, F j, Y" }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Display messages -->
+            {% if messages %}
+            <div class="messages mt-3">
+                {% for message in messages %}
+                <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}success{% endif %} alert-dismissible fade show"
+                    role="alert">
+                    <i
+                        class="fas fa-{% if message.tags == 'error' %}exclamation-triangle{% else %}check-circle{% endif %} me-2"></i>
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- Qualification Filter -->
+            {% if all_qualifications %}
+            <div class="card shadow mt-3">
+                <div class="card-body">
+                    <form method="GET" class="row g-2 align-items-end">
+                        <div class="col-md-3">
+                            <label for="qualificationFilter" class="form-label">
+                                <i class="fas fa-filter me-2"></i>Filter by Qualification
+                            </label>
+                            <select name="qualification_id" id="qualificationFilter" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Qualifications</option>
+                                {% for qual in all_qualifications %}
+                                    <option value="{{ qual.id }}" {% if qual.id == selected_qualification.id %}selected{% endif %}>
+                                        {{ qual.title }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-9">
+                            {% if selected_qualification %}
+                                <div class="alert alert-info mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Viewing assessments for: <strong>{{ selected_qualification.title }}</strong>
+                                </div>
+                            {% elif user_qualification %}
+                                <div class="alert alert-info mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Your assigned qualification: <strong>{{ user_qualification.title }}</strong>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Tab Navigation -->
+            <div class="card shadow mt-3">
+                <div class="card-header" style="background: linear-gradient(to right, #3a063a, #580658); color: white;">
+                    <ul class="nav nav-tabs card-header-tabs" id="assessmentTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="qdd-review-tab" data-bs-toggle="tab" data-bs-target="#qdd-review" type="button" role="tab" aria-controls="qdd-review" aria-selected="true">
+                                <i class="fas fa-list-ol me-2"></i> Assessments For QDD Review
+                                {% if pending_assessments %}
+                                <span class="badge badge-count bg-danger">{{ pending_assessments|length }}</span>
+                                {% endif %}
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="qdd-reviewed-tab" data-bs-toggle="tab" data-bs-target="#qdd-reviewed" type="button" role="tab" aria-controls="qdd-reviewed" aria-selected="false">
+                                <i class="fas fa-check-circle me-2"></i> Reviewed Assessments
+                                {% if archived_assessments %}
+                                <span class="badge badge-count bg-success">{{ archived_assessments|length }}</span>
+                                {% endif %}
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div class="tab-content" id="assessmentTabsContent">
+                        <!-- Include the reusable assessment table partial -->
+                        {% include "core/qdd/_assessment_table.html" with role="qdd" assessments=pending_assessments archived_assessments=archived_assessments action_route="qdd_moderate_assessment" action_button_text="Forward to ETQA" empty_message="No assessments pending QDD review." pending_tab_id="qdd-review" achieved_tab_id="qdd-reviewed" %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for confirmation messages -->
+    <div class="modal fade" id="confirmationModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">Modal title</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="modalBody">
+                    ...
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Celebration Animation Container -->
+    <div class="confetti-container" id="confettiContainer"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Search functionality
+            const searchInput = document.querySelector('input[type="search"]');
+            if (searchInput) {
+                searchInput.addEventListener('input', function () {
+                    const searchTerm = this.value.toLowerCase();
+                    const tables = document.querySelectorAll('.tab-pane.active .table tbody tr');
+                    
+                    tables.forEach(row => {
+                        const text = row.textContent.toLowerCase();
+                        if (text.includes(searchTerm)) {
+                            row.style.display = '';
+                        } else {
+                            row.style.display = 'none';
+                        }
+                    });
+                });
+            }
+
+            // Add hover effects to table rows
+            const tableRows = document.querySelectorAll('tbody tr');
+            tableRows.forEach(row => {
+                row.addEventListener('mouseenter', function () {
+                    this.style.transform = 'translateY(-2px)';
+                    this.style.transition = 'transform 0.2s ease';
+                });
+
+                row.addEventListener('mouseleave', function () {
+                    this.style.transform = 'translateY(0)';
+                });
+            });
+
+            // Tab change event to reset search
+            const tabButtons = document.querySelectorAll('[data-bs-toggle="tab"]');
+            tabButtons.forEach(tab => {
+                tab.addEventListener('shown.bs.tab', function () {
+                    if (searchInput) {
+                        searchInput.value = '';
+                    }
+                    const currentTable = document.querySelector('.tab-pane.active .table tbody');
+                    if (currentTable) {
+                        const rows = currentTable.querySelectorAll('tr');
+                        rows.forEach(row => row.style.display = '');
+                    }
+                });
+            });
+
+            // Function to show modal
+            function showModal(title, message) {
+                document.getElementById('modalTitle').textContent = title;
+                document.getElementById('modalBody').textContent = message;
+                const modal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+                modal.show();
+            }
+
+            // Celebration animation
+            function triggerCelebration() {
+                const container = document.getElementById('confettiContainer');
+                container.style.display = 'block';
+
+                for (let i = 0; i < 100; i++) {
+                    createConfetti();
+                }
+
+                setTimeout(() => {
+                    container.style.display = 'none';
+                    container.innerHTML = '';
+                }, 3000);
+            }
+
+            function createConfetti() {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+
+                const colors = ['#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', '#00bcd4', '#009688', '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722'];
+                const randomColor = colors[Math.floor(Math.random() * colors.length)];
+
+                confetti.style.backgroundColor = randomColor;
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.top = -10 + 'px';
+                confetti.style.transform = `rotate(${Math.random() * 360}deg)`;
+
+                const animation = confetti.animate([
+                    { top: '-10px', opacity: 1, transform: `rotate(0deg) scale(1)` },
+                    { top: '100vh', opacity: 0, transform: `rotate(${Math.random() * 360}deg) scale(0.5)` }
+                ], {
+                    duration: 3000,
+                    easing: 'cubic-bezier(0.1, 0.8, 0.9, 1)'
+                });
+
+                document.getElementById('confettiContainer').appendChild(confetti);
+
+                animation.onfinish = () => {
+                    confetti.remove();
+                };
+            }
+        });
+    </script>
+</body>
+
+</html>

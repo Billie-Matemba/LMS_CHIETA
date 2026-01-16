@@ -1,3 +1,4 @@
+
 from django.contrib import admin
 from django.conf import settings
 from django.conf.urls.static import static
@@ -5,6 +6,7 @@ from django.urls import path, include
 import core.views as views
 from core import admin_views as admin_pages
 from core import extractor_views
+
 from core.create_student import (toggle_student_status, create_student_by_assessment_center)
 from core.auth_views import (forgot_password, reset_password)
 # import core.oldviews as oldviews
@@ -84,6 +86,10 @@ urlpatterns = [
     path('moderator/feedback/', views.moderator_feedback, name='moderator_feedback'),
     path('moderator/history/', views.moderator_history, name='moderator_history'),
     path('moderator/download-report/<str:eisa_id>/', views.download_moderator_report, name='download_moderator_report'),
+
+    # QDD (Quality Assurance and Curriculum Development) URLs
+    path('qdd/', views.qdd_developer_dashboard, name='qdd_developer_dashboard'),
+    path('qdd/moderate/<str:eisa_id>/', views.qdd_moderate_assessment, name='qdd_moderate_assessment'),
 
     # ETQA URLs
     path('etqa/', views.etqa_dashboard, name='etqa_dashboard'),
@@ -252,6 +258,7 @@ urlpatterns = [
         extractor_views.save_paper_meta,
         name="exam_save_paper_meta",
     ),
+
 
 ]
 

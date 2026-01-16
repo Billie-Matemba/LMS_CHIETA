@@ -1,0 +1,207 @@
+<!-- Reusable Assessment Table Partial
+     Parameters:
+     - role: 'moderator' or 'qdd' (determines button labels and styling)
+     - assessments: queryset of Assessment objects to display
+     - action_route: URL name for the form action (e.g., 'moderate_assessment', 'qdd_moderate_assessment')
+     - action_button_text: Primary button text (e.g., 'Approve', 'Forward to ETQA')
+     - empty_message: Message when no assessments found
+     - pending_tab_id: HTML ID for pending assessments tab (default: 'moderation')
+     - achieved_tab_id: HTML ID for achieved assessments tab (default: 'achieved')
+-->
+
+<!-- Pending/In-Review Assessments Tab -->
+<div class="tab-pane fade show active" id="{{ pending_tab_id|default:'moderation' }}" role="tabpanel" aria-labelledby="{{ pending_tab_id|default:'moderation' }}-tab">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-secondary">
+                <tr>
+                    <th scope="col">EISA ID</th>
+                    <th scope="col">Qualification</th>
+                    <th scope="col">Paper</th>
+                    <th scope="col">Submitted</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="text-nowrap">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for asmt in assessments %}
+                <tr>
+                    <td class="fw-semibold">{{ asmt.eisa_id }}</td>
+                    <td>{{ asmt.qualification.name|default:"-" }}</td>
+                    <td>{{ asmt.paper }}</td>
+                    <td>{{ asmt.created_at|date:"M j, Y H:i" }}</td>
+                    <td><span class="badge bg-secondary">{{ asmt.status }}</span></td>
+                    <td>
+                        <div class="d-flex flex-column gap-2">
+                            <!-- Memo Download Button -->
+                            {% if asmt.paper_type == 'randomized' and asmt.memo_file or asmt.memo %}
+                            <a href="{% url 'download_memo' asmt.id %}" 
+                               class="btn btn-sm btn-memo text-nowrap" 
+                               target="_blank"
+                               title="Download memo submitted by assessor">
+                                <i class="fas fa-file-alt me-1"></i> Download Memo
+                            </a>
+                            {% elif asmt.memo %}
+                            <a href="{% url 'download_memo' asmt.id %}" 
+                               class="btn btn-sm btn-memo text-nowrap" 
+                               target="_blank"
+                               title="Download memo submitted by assessor">
+                                <i class="fas fa-file-alt me-1"></i> Download Memo
+                            </a>
+                            {% else %}
+                            <span class="text-muted small">No memo available</span>
+                            {% endif %}
+
+                            <!-- Paper Viewing Options -->
+                            {% if asmt.paper_type == 'randomized' %}
+                            <a href="{% url 'assessor_randomized_snapshot' asmt.id %}"
+                                class="btn btn-sm btn-outline-success text-nowrap">
+                                <i class="fas fa-project-diagram me-1"></i> View Randomised
+                            </a>
+                            <a href="{% url 'download_randomized_pdf' asmt.id %}?format=docx"
+                                class="btn btn-sm btn-outline-secondary text-nowrap">
+                                <i class="fas fa-download me-1"></i> Download Word
+                            </a>
+                            {% elif asmt.paper_link %}
+                            <a href="{% url 'load_saved_paper' asmt.paper_link.pk %}"
+                                class="btn btn-sm btn-outline-primary text-nowrap">
+                                <i class="fas fa-eye me-1"></i> View Paper
+                            </a>
+                            {% elif asmt.file %}
+                            <a href="{{ asmt.file.url }}" target="_blank"
+                                class="btn btn-sm btn-outline-secondary text-nowrap">
+                                <i class="fas fa-download me-1"></i> Download Paper
+                            </a>
+                            {% else %}
+                            <span class="text-muted small">No paper available</span>
+                            {% endif %}
+
+                            <!-- Action Form (role-specific) -->
+                            <form method="post" action="{% url action_route asmt.eisa_id %}"
+                                enctype="multipart/form-data"
+                                class="d-flex flex-column flex-lg-row gap-2 moderation-inline-form">
+                                {% csrf_token %}
+                                <input type="file" name="moderator_report"
+                                    accept=".doc,.docx,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                    class="form-control form-control-sm"
+                                    title="{% if role == 'qdd' %}Optional QDD review report{% else %}Moderator review report{% endif %}">
+                                <div class="d-flex gap-2">
+                                    <button type="submit" name="action" value="approve"
+                                        class="btn btn-sm btn-success text-nowrap">
+                                        <i class="fas fa-check me-1"></i> {{ action_button_text|default:"Approve" }}
+                                    </button>
+                                    <button type="submit" name="action" value="return"
+                                        class="btn btn-sm btn-outline-danger text-nowrap">
+                                        <i class="fas fa-undo me-1"></i> Return
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-4">{{ empty_message|default:"No assessments pending review." }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Achieved/Archived Assessments Tab -->
+<div class="tab-pane fade" id="{{ achieved_tab_id|default:'achieved' }}" role="tabpanel" aria-labelledby="{{ achieved_tab_id|default:'achieved' }}-tab">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-secondary">
+                <tr>
+                    <th scope="col">EISA ID</th>
+                    <th scope="col">Qualification</th>
+                    <th scope="col">Paper</th>
+                    <th scope="col">{% if role == 'qdd' %}Reviewed{% else %}Moderated{% endif %} Date</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="text-nowrap">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for asmt in archived_assessments %}
+                <tr>
+                    <td class="fw-semibold">{{ asmt.eisa_id }}</td>
+                    <td>{{ asmt.qualification.name|default:"-" }}</td>
+                    <td>{{ asmt.paper }}</td>
+                    <td>{{ asmt.status_changed_at|date:"M j, Y H:i"|default:"-" }}</td>
+                    <td>
+                        <span class="badge {% if asmt.status == 'Submitted to QCTO' or asmt.status == 'pending_etqa' %}bg-success{% else %}bg-warning{% endif %}">
+                            {{ asmt.status }}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="d-flex flex-column gap-2">
+                            <!-- Memo Download Button -->
+                            {% if asmt.paper_type == 'randomized' and asmt.memo_file or asmt.memo %}
+                            <a href="{% url 'download_memo' asmt.id %}" 
+                               class="btn btn-sm btn-memo-outline text-nowrap" 
+                               target="_blank"
+                               title="Download memo submitted by assessor">
+                                <i class="fas fa-file-alt me-1"></i> Download Memo
+                            </a>
+                            {% elif asmt.memo %}
+                            <a href="{% url 'download_memo' asmt.id %}" 
+                               class="btn btn-sm btn-memo-outline text-nowrap" 
+                               target="_blank"
+                               title="Download memo submitted by assessor">
+                                <i class="fas fa-file-alt me-1"></i> Download Memo
+                            </a>
+                            {% else %}
+                            <span class="text-muted small">No memo available</span>
+                            {% endif %}
+
+                            <!-- View Paper Options -->
+                            {% if asmt.paper_type == 'randomized' %}
+                            <a href="{% url 'assessor_randomized_snapshot' asmt.id %}"
+                                class="btn btn-sm btn-outline-success text-nowrap">
+                                <i class="fas fa-project-diagram me-1"></i> View Randomised
+                            </a>
+                            <a href="{% url 'download_randomized_pdf' asmt.id %}?format=docx"
+                                class="btn btn-sm btn-outline-secondary text-nowrap">
+                                <i class="fas fa-download me-1"></i> Download Word
+                            </a>
+                            {% elif asmt.paper_link %}
+                            <a href="{% url 'load_saved_paper' asmt.paper_link.pk %}"
+                                class="btn btn-sm btn-outline-primary text-nowrap">
+                                <i class="fas fa-eye me-1"></i> View Paper
+                            </a>
+                            {% elif asmt.file %}
+                            <a href="{{ asmt.file.url }}" target="_blank"
+                                class="btn btn-sm btn-outline-secondary text-nowrap">
+                                <i class="fas fa-download me-1"></i> Download Paper
+                            </a>
+                            {% else %}
+                            <span class="text-muted small">No paper available</span>
+                            {% endif %}
+
+                            <!-- Download Review/Moderation Report -->
+                            {% if asmt.moderator_report %}
+                            <a href="{{ asmt.moderator_report.url }}" target="_blank"
+                                class="btn btn-sm btn-outline-info text-nowrap">
+                                <i class="fas fa-file-word me-1"></i> Download {% if role == 'qdd' %}Review{% else %}Moderator{% endif %} Report
+                            </a>
+                            {% else %}
+                            <span class="text-muted small">No report available</span>
+                            {% endif %}
+                        </div>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center py-4">
+                        <i class="fas fa-check-circle fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No archived assessments yet.</h5>
+                        <p class="text-muted">Completed reviews will appear here.</p>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

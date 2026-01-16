@@ -58,6 +58,7 @@ class CustomUser(AbstractUser):
         ('moderator',       'Moderator (Developer)'),
         ('qcto',            'QCTO Validator'),
         ('etqa',            'ETQA'),
+        ('qdd',            'QDD Reviewer'),
         ('learner',         'Learner'),
         ('assessor_marker', 'Assessor (Marker)'),
         ('internal_mod',    'Internal Moderator'),

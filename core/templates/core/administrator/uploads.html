@@ -18,6 +18,33 @@
         background-color: #f8f9fa;
         border-bottom: 1px solid #dee2e6;
     }
+    
+    .filter-tabs {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+    }
+    
+    .filter-btn {
+        padding: 0.5rem 1rem;
+        border: 1px solid #dee2e6;
+        background: white;
+        border-radius: 0.25rem;
+        cursor: pointer;
+        text-decoration: none;
+        color: #495057;
+        transition: all 0.2s;
+    }
+    
+    .filter-btn:hover {
+        background: #f8f9fa;
+    }
+    
+    .filter-btn.active {
+        background: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
 </style>
 {% endblock %}
 
@@ -28,8 +55,8 @@
             <!-- Header -->
             <div class="d-flex align-items-center gap-3 mb-4">
                 <div>
-                    <h1 class="mb-0"><i class="fas fa-file-upload me-2"></i>Uploaded Papers</h1>
-                    <p class="text-muted mb-0">Track and manage raw Word document uploads before extraction</p>
+                    <h1 class="mb-0"><i class="fas fa-file-upload me-2"></i>Papers Pipeline</h1>
+                    <p class="text-muted mb-0">Track uploaded files, extracted papers, and randomized variants</p>
                 </div>
             </div>
 
@@ -43,14 +70,79 @@
                 {% endfor %}
             {% endif %}
 
-            <!-- Uploads Table Card -->
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="fas fa-list me-2"></i>All Uploads</h5>
-                </div>
-                
-                {% include "partials/uploads_table.html" with uploads=uploads %}
+            <!-- Filter Tabs -->
+            <div class="filter-tabs">
+                <a href="?filter=all" class="filter-btn {% if filter_type == 'all' %}active{% endif %}">
+                    All Papers
+                </a>
+                <a href="?filter=raw" class="filter-btn {% if filter_type == 'raw' %}active{% endif %}">
+                    <i class="fas fa-upload me-1"></i>Raw Uploads
+                </a>
+                <a href="?filter=extracted" class="filter-btn {% if filter_type == 'extracted' %}active{% endif %}">
+                    <i class="fas fa-magic me-1"></i>Extracted
+                </a>
+                <a href="?filter=randomized" class="filter-btn {% if filter_type == 'randomized' %}active{% endif %}">
+                    <i class="fas fa-shuffle me-1"></i>Randomized
+                </a>
             </div>
+
+            <!-- All Papers Combined View -->
+            {% if filter_type == "all" %}
+                <!-- Raw Uploads Section -->
+                {% if raw_uploads %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-upload me-2"></i>Raw Uploads</h5>
+                        </div>
+                        {% include "partials/uploads_table.html" with uploads=raw_uploads upload_type="raw" %}
+                    </div>
+                {% endif %}
+
+                <!-- Extracted Papers Section -->
+                {% if extracted_papers %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-magic me-2"></i>Extracted Papers</h5>
+                        </div>
+                        {% include "partials/uploads_table.html" with uploads=extracted_papers upload_type="extracted" %}
+                    </div>
+                {% endif %}
+
+                <!-- Randomized Papers Section -->
+                {% if randomized_papers %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-shuffle me-2"></i>Randomized Papers</h5>
+                        </div>
+                        {% include "partials/uploads_table.html" with uploads=randomized_papers upload_type="randomized" %}
+                    </div>
+                {% endif %}
+
+            <!-- Filtered View -->
+            {% elif filter_type == "raw" %}
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Raw Uploads (Not Yet Extracted)</h5>
+                    </div>
+                    {% include "partials/uploads_table.html" with uploads=raw_uploads upload_type="raw" %}
+                </div>
+
+            {% elif filter_type == "extracted" %}
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Extracted Papers</h5>
+                    </div>
+                    {% include "partials/uploads_table.html" with uploads=extracted_papers upload_type="extracted" %}
+                </div>
+
+            {% elif filter_type == "randomized" %}
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Randomized Papers</h5>
+                    </div>
+                    {% include "partials/uploads_table.html" with uploads=randomized_papers upload_type="randomized" %}
+                </div>
+            {% endif %}
         </div>
     </div>
 </div>

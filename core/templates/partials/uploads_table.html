@@ -4,111 +4,166 @@
             <table class="table uploads-table table-hover align-middle mb-0">
                 <thead>
                     <tr>
-                        <th scope="col" class="ps-4">Filename</th>
+                        <th scope="col" class="ps-4">Name</th>
                         <th scope="col">Qualification</th>
-                        <th scope="col">EISA ID</th>
-                        <th scope="col">Uploaded</th>
+                        {% if upload_type == "raw" %}
+                            <th scope="col">EISA ID</th>
+                        {% elif upload_type == "extracted" %}
+                            <th scope="col">Questions</th>
+                        {% elif upload_type == "randomized" %}
+                            <th scope="col">Questions</th>
+                        {% endif %}
+                        <th scope="col">Created/Uploaded</th>
                         <th scope="col">Status</th>
                         <th scope="col">Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for upload in uploads %}
+                    {% for item in uploads %}
                         <tr>
                             <td class="ps-4">
                                 <div class="fw-semibold">
-                                    {% if upload.file %}
-                                        {{ upload.file.name|truncatechars:40 }}
+                                    {% if upload_type == "raw" %}
+                                        {% if item.file %}
+                                            {{ item.file.name|truncatechars:40 }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
                                     {% else %}
-                                        <span class="text-muted">-</span>
+                                        {{ item.name|truncatechars:40 }}
                                     {% endif %}
                                 </div>
                             </td>
                             <td>
-                                {{ upload.qualification.name|default:"-" }}
+                                {% if upload_type == "raw" %}
+                                    {{ item.qualification.name|default:"-" }}
+                                {% else %}
+                                    {{ item.qualification.name|default:"-" }}
+                                {% endif %}
                             </td>
                             <td>
-                                {{ upload.eisa_id|default:"-" }}
+                                {% if upload_type == "raw" %}
+                                    {{ item.eisa_id|default:"-" }}
+                                {% elif upload_type == "extracted" or upload_type == "randomized" %}
+                                    {{ item.question_count }}
+                                {% endif %}
                             </td>
                             <td>
-                                {{ upload.created_at|date:"Y-m-d H:i" }}
+                                {% if upload_type == "raw" %}
+                                    {{ item.created_at|date:"Y-m-d H:i" }}
+                                {% else %}
+                                    {{ item.created_at|date:"Y-m-d H:i" }}
+                                {% endif %}
                             </td>
                             <td>
-                                <span class="badge bg-info text-dark">
-                                    {% if upload.paper_link %}
+                                <span class="badge {% if upload_type == 'raw' %}bg-info{% elif upload_type == 'extracted' %}bg-success{% elif upload_type == 'randomized' %}bg-warning text-dark{% endif %}">
+                                    {% if upload_type == "raw" %}
+                                        {% if item.paper_link %}
+                                            Extracted
+                                        {% else %}
+                                            Pending
+                                        {% endif %}
+                                    {% elif upload_type == "extracted" %}
                                         Extracted
-                                    {% else %}
-                                        Pending Extraction
+                                    {% elif upload_type == "randomized" %}
+                                        Randomized
                                     {% endif %}
                                 </span>
                             </td>
                             <td>
                                 <div class="btn-group btn-group-sm" role="group">
-                                    {% if upload.file %}
-                                        <a href="{{ upload.file.url }}" class="btn btn-outline-primary" title="Download original file">
-                                            <i class="fas fa-download me-1"></i>Download
-                                        </a>
-                                    {% else %}
-                                        <button class="btn btn-outline-secondary" disabled>
-                                            <i class="fas fa-download me-1"></i>No file
+                                    {% if upload_type == "raw" %}
+                                        {% if item.file %}
+                                            <a href="{{ item.file.url }}" class="btn btn-outline-primary" title="Download original file">
+                                                <i class="fas fa-download me-1"></i>Download
+                                            </a>
+                                        {% else %}
+                                            <button class="btn btn-outline-secondary" disabled>
+                                                <i class="fas fa-download me-1"></i>No file
+                                            </button>
+                                        {% endif %}
+                                        
+                                        {% if not item.paper_link %}
+                                            <a href="{% url 'extractor_detail' item.id %}" class="btn btn-outline-success" title="Extract and structure paper">
+                                                <i class="fas fa-magic me-1"></i>Extract
+                                            </a>
+                                        {% else %}
+                                            <button class="btn btn-outline-success" disabled>
+                                                <i class="fas fa-check me-1"></i>Extracted
+                                            </button>
+                                        {% endif %}
+                                        
+                                        <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#forwardModal{{ item.id }}" title="Forward to user">
+                                            <i class="fas fa-share me-1"></i>Forward
                                         </button>
-                                    {% endif %}
-                                    
-                                    {% if not upload.paper_link %}
-                                        <a href="{% url 'extractor_detail' upload.id %}" class="btn btn-outline-success" title="Extract and structure paper">
-                                            <i class="fas fa-magic me-1"></i>Extract
-                                        </a>
                                     {% else %}
-                                        <button class="btn btn-outline-success" disabled>
-                                            <i class="fas fa-check me-1"></i>Extracted
-                                        </button>
+                                        <!-- Extracted/Randomized Paper Actions -->
+                                        <a href="/assessor/paper/{{ item.id }}/" class="btn btn-outline-primary" title="View paper details">
+                                            <i class="fas fa-eye me-1"></i>View
+                                        </a>
+                                        
+                                       {% with assessment=item.assessments.first %}
+                                            {% if assessment and assessment.file %}
+                                                <a href="{{ assessment.file.url }}" class="btn btn-outline-info" title="Download original Word file">
+                                                    <i class="fas fa-file-word me-1"></i>Download
+                                                </a>
+                                            {% else %}
+                                                <button class="btn btn-outline-secondary" disabled title="Original file not available">
+                                                    <i class="fas fa-file-word me-1"></i>No file
+                                                </button>
+                                            {% endif %}
+                                        {% endwith %}
+                                        
+                                        {% if upload_type == "extracted" %}
+                                            <a href="{% url 'randomize_paper_structure' item.id %}" class="btn btn-outline-warning" title="Create randomized variant">
+                                                <i class="fas fa-shuffle me-1"></i>Randomize
+                                            </a>
+                                        {% endif %}
                                     {% endif %}
-                                    
-                                    <button class="btn btn-outline-info" data-bs-toggle="modal" data-bs-target="#forwardModal{{ upload.id }}" title="Forward to user">
-                                        <i class="fas fa-share me-1"></i>Forward
-                                    </button>
                                 </div>
                             </td>
                         </tr>
                         
-                        <!-- Forward Modal -->
-                        <div class="modal fade" id="forwardModal{{ upload.id }}" tabindex="-1" aria-hidden="true">
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title">Forward Upload to User</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        <!-- Forward Modal (only for raw uploads) -->
+                        {% if upload_type == "raw" %}
+                            <div class="modal fade" id="forwardModal{{ item.id }}" tabindex="-1" aria-hidden="true">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Forward Upload to User</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="post" action="{% url 'forward_upload' item.id %}">
+                                            {% csrf_token %}
+                                            <div class="modal-body">
+                                                <div class="mb-3">
+                                                    <label for="assignUser{{ item.id }}" class="form-label">Assign to User</label>
+                                                    <select id="assignUser{{ item.id }}" name="assigned_to" class="form-select" required>
+                                                        <option value="">-- Select a user --</option>
+                                                        {% for user in all_users %}
+                                                            <option value="{{ user.id }}">
+                                                                {{ user.get_full_name }} ({{ user.get_role_display }})
+                                                            </option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </div>
+                                                <div class="mb-3">
+                                                    <label for="forwardNote{{ item.id }}" class="form-label">Note (optional)</label>
+                                                    <textarea id="forwardNote{{ item.id }}" name="note" class="form-control" rows="3" placeholder="Add a note for the recipient..."></textarea>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-primary">Forward</button>
+                                            </div>
+                                        </form>
                                     </div>
-                                    <form method="post" action="{% url 'forward_upload' upload.id %}">
-                                        {% csrf_token %}
-                                        <div class="modal-body">
-                                            <div class="mb-3">
-                                                <label for="assignUser{{ upload.id }}" class="form-label">Assign to User</label>
-                                                <select id="assignUser{{ upload.id }}" name="assigned_to" class="form-select" required>
-                                                    <option value="">-- Select a user --</option>
-                                                    {% for user in all_users %}
-                                                        <option value="{{ user.id }}">
-                                                            {{ user.get_full_name }} ({{ user.get_role_display }})
-                                                        </option>
-                                                    {% endfor %}
-                                                </select>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label for="forwardNote{{ upload.id }}" class="form-label">Note (optional)</label>
-                                                <textarea id="forwardNote{{ upload.id }}" name="note" class="form-control" rows="3" placeholder="Add a note for the recipient..."></textarea>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                            <button type="submit" class="btn btn-primary">Forward</button>
-                                        </div>
-                                    </form>
                                 </div>
                             </div>
-                        </div>
+                        {% endif %}
                     {% empty %}
                         <tr>
-                            <td colspan="6" class="text-center py-4 text-muted">No uploaded files available.</td>
+                            <td colspan="6" class="text-center py-4 text-muted">No papers found.</td>
                         </tr>
                     {% endfor %}
                 </tbody>
@@ -117,6 +172,6 @@
     </div>
 {% else %}
     <div class="card-body">
-        <p class="text-muted mb-0">No uploaded files.</p>
+        <p class="text-muted mb-0">No papers found.</p>
     </div>
 {% endif %}

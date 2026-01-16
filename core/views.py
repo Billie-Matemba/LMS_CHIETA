@@ -166,6 +166,8 @@ def redirect_user_by_role(user):
         return redirect("qcto_dashboard")
     elif role == "etqa":
         return redirect("etqa_dashboard")
+    elif role == "qdd":
+        return redirect("qdd_developer_dashboard")
     elif role == "learner":
         return redirect("student_dashboard")
     elif role == "assessment_center":
@@ -3865,21 +3867,30 @@ def checklist_stats(request):
     return JsonResponse({"total": total, "completed": done, "pending": pending})
 
 
-# 1) QCTO Dashboard: list assessments submitted to ETQA
-# QCTO Dashboard: list assessments submitted to ETQA
+# 1) QCTO Dashboard: list assessments submitted to QCTO
+# QCTO Dashboard: list assessments for QCTO review and completed reviews
 @require_http_methods(["GET"])
 def qcto_dashboard(request):
     """
     QCTO dashboard: list assessments submitted by the moderator for QCTO review.
-    Only those with status 'Submitted to QCTO' appear here.
+    Pending: assessments with status 'Submitted to QCTO'
+    Completed: assessments that QCTO has already reviewed (now at QDD Review or beyond)
     """
     pending_assessments = Assessment.objects.filter(
         status="Submitted to QCTO"
     ).order_by("-created_at")
+    
+    reviewed_assessments = Assessment.objects.filter(
+        status__in=["QDD Review", "pending_etqa", "Submitted to ETQA"]
+    ).order_by("-status_changed_at")
+    
     return render(
         request,
         "core/qcto/qcto_dashboard.html",
-        {"pending_assessments": pending_assessments},
+        {
+            "pending_assessments": pending_assessments,
+            "reviewed_assessments": reviewed_assessments,
+        },
     )
 
 
@@ -3888,7 +3899,8 @@ def qcto_dashboard(request):
 def qcto_moderate_assessment(request, eisa_id):
     """
     QCTO review step: only handles assessments with status 'Submitted to QCTO'.
-    On 'approve', status becomes 'Submitted to ETQA'; on 'reject', status becomes 'Rejected'.
+    On 'approve', status becomes 'QDD Review' (forward to QDD);
+    on 'reject', status becomes 'Rejected'.
     """
     assessment = get_object_or_404(Assessment, eisa_id=eisa_id)
 
@@ -3901,13 +3913,13 @@ def qcto_moderate_assessment(request, eisa_id):
         decision = request.POST.get("decision")  # either 'approve' or 'reject'
 
         if decision == "approve":
-            assessment.status = "Submitted to ETQA"
+            assessment.status = "QDD Review"
             assessment.status_changed_at = now()
             assessment.status_changed_by = (
                 request.user if request.user.is_authenticated else None
             )
             messages.success(
-                request, f"{assessment.eisa_id} approved and forwarded to ETQA."
+                request, f"{assessment.eisa_id} approved and forwarded to QDD for review."
             )
         elif decision == "reject":
             assessment.status = "Rejected"
@@ -4996,6 +5008,185 @@ def write_exam(request, assessment_id):
     }
     return render(request, "core/student/write_exam.html", context)
 
+# @login_required
+# @require_http_methods(["POST"])
+# def submit_exam(request, assessment_id):
+#     """
+#     Accepts both regular and AJAX submissions
+#     - answer_<GeneratedQuestion.id>          (old pipeline)
+#     - answer_node_<ExamNode.uuid>           (new pipeline)
+
+#     Old: creates ExamAnswer rows (your existing flow).
+#     New: collects node answers; optionally save into StudentWrittenPaper if present.
+#     """
+#     assessment = get_object_or_404(Assessment, id=assessment_id)
+
+#     # Check if already submitted (prevent duplicate submissions)
+#     existing_attempts = ExamSubmission.objects.filter(
+#         assessment=assessment, student=request.user
+#     ).count()
+    
+#     if existing_attempts > 0:
+#         if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+#             return JsonResponse({
+#                 'success': False,
+#                 'message': 'You have already submitted this exam.'
+#             })
+#         messages.warning(request, "You have already submitted this exam.")
+#         return redirect("student_dashboard")
+
+#     paper = assessment.paper_link
+
+#     student_number = (getattr(request.user, "student_number", None) or "").strip()
+#     if not student_number or getattr(request.user, "role", "") != "learner":
+#         messages.error(
+#             request,
+#             "This submission route is reserved for learners. You're signed in as staff/superuser, so no attempt was recorded.",
+#         )
+#         return redirect("student_dashboard")
+
+#     attempt_number = existing_attempts + 1
+
+#     # --- OLD PIPELINE: GeneratedQuestion -> ExamAnswer ---
+#     saved_count_old = 0
+#     for key, value in request.POST.items():
+#         if not key.startswith("answer_"):
+#             continue
+#         # ignore the new pipeline prefix
+#         if key.startswith("answer_node_"):
+#             continue
+
+#         # key is "answer_<gq_id>"
+#         try:
+#             gq_id = int(key.split("_", 1)[1])
+#         except (IndexError, ValueError):
+#             continue
+
+#         gq = GeneratedQuestion.objects.filter(id=gq_id, assessment=assessment).first()
+#         if not gq:
+#             continue
+
+#         try:
+#             with transaction.atomic():
+#                 ExamAnswer.objects.create(
+#                     user=request.user,
+#                     question=gq,
+#                     answer_text=(value or "").strip(),
+#                     attempt_number=attempt_number,
+#                 )
+#                 saved_count_old += 1
+#         except IntegrityError:
+#             # If unique_together blocks dupes, update instead
+#             ans = ExamAnswer.objects.get(
+#                 user=request.user, question=gq, attempt_number=attempt_number
+#             )
+#             ans.answer_text = (value or "").strip()
+#             ans.save(update_fields=["answer_text"])
+
+#     # --- NEW PIPELINE: ExamNode -> collect answers ---
+#     node_answers: dict[str, str] = {}
+#     answers_data = []
+#     for key, value in request.POST.items():
+#         if not key.startswith("answer_node_"):
+#             continue
+#         node_uuid = key.replace("answer_node_", "", 1).strip()
+#         answer_text = (value or "").strip()
+#         node_answers[node_uuid] = answer_text
+
+#         if not paper:
+#             continue
+
+#         position = len(answers_data) + 1
+#         try:
+#             exam_node = ExamNode.objects.get(id=node_uuid, paper=paper)
+#             answers_data.append(
+#                 {
+#                     "node": exam_node,
+#                     "answer": answer_text,
+#                     "marks": exam_node.marks,
+#                     "question_number": exam_node.number or f"Q{position}",
+#                 }
+#             )
+#         except ExamNode.DoesNotExist:
+#             answers_data.append(
+#                 {
+#                     "question_text": f"Question {node_uuid[:8]}...",
+#                     "answer": answer_text,
+#                     "marks": None,
+#                     "question_number": f"Q{position}",
+#                 }
+#             )
+
+#     saved_new = len(node_answers)
+
+#     if paper and (saved_new or saved_count_old):
+#         context = {
+#             "paper": paper,
+#             "assessment": assessment,
+#             "attempt_number": attempt_number,
+#             "student": request.user,
+#             "student_number": request.user.student_number,
+#             "student_name": f"{request.user.first_name} {request.user.last_name}",
+#             "answers": answers_data,
+#             "submission_date": timezone.now(),
+#             "total_questions": len(node_answers),
+#         }
+
+#         exam_submission = ExamSubmission.objects.create(
+#             student=request.user,
+#             student_number=request.user.student_number,
+#             student_name=f"{request.user.first_name} {request.user.last_name}",
+#             paper=paper,
+#             assessment=assessment,
+#             attempt_number=attempt_number,
+#             submitted_at=timezone.now(),
+#         )
+
+#         try:
+#             html_string = render_to_string(
+#                 "core/student/exam_pdf_template.html", context
+#             )
+#             pdf_buffer = BytesIO()
+#             pisa_status = pisa.CreatePDF(html_string, dest=pdf_buffer)
+
+#             if pisa_status.err:
+#                 raise Exception("PDF generation failed")
+
+#             file_name = f"{request.user.student_number}_{paper.name.replace(' ', '_')}_Attempt_{attempt_number}.pdf"
+#             pdf_buffer.seek(0)
+#             exam_submission.pdf_file.save(file_name, ContentFile(pdf_buffer.getvalue()))
+#             exam_submission.save()
+#         except Exception as exc:  # pragma: no cover
+#             messages.warning(
+#                 request,
+#                 "Your answers were saved, but the PDF could not be generated. Please contact support.",
+#             )
+
+#     # OPTIONAL: persist node answers if you've added StudentWrittenPaper
+#     # if node_answers:
+#     #     if paper:
+#     #         swp, _ = StudentWrittenPaper.objects.get_or_create(
+#     #             learner=request.user,
+#     #             paper=paper,
+#     #         )
+#     #         existing = swp.answers_json or {}
+#     #         existing.update(node_answers)
+#     #         swp.answers_json = existing
+#     #         swp.save(update_fields=['answers_json', 'last_updated'])
+
+#     total_saved = saved_count_old + saved_new
+    
+#     # Handle AJAX requests (for auto-save)
+#     if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+#         return JsonResponse({
+#             'success': True,
+#             'message': 'Auto-saved successfully',
+#             'saved_count': total_saved
+#         })
+
+
+
+
 @login_required
 @require_http_methods(["POST"])
 def submit_exam(request, assessment_id):
@@ -5176,11 +5367,23 @@ def submit_exam(request, assessment_id):
     if total_saved:
         messages.success(request, "Your answers were submitted successfully.")
     else:
+
+    #call 
         messages.warning(
             request,
             "We could not detect any answers. Please ensure your responses are filled in and submit again.",
         )
     return redirect("student_dashboard")
+
+#     # Regular form submission
+#     if total_saved:
+#         messages.success(request, "Your answers were submitted successfully.")
+#     else:
+#         messages.warning(
+#             request,
+#             "We could not detect any answers. Please ensure your responses are filled in and submit again.",
+#         )
+#     return redirect("student_dashboard")
 
 
 def papers_demo(request):
@@ -6297,5 +6500,177 @@ def toggle_student_status(request, student_id):
             messages.error(request, f'Error updating student: {str(e)}')
     
     return redirect('create_student_by_assessment_center')
+
+
+# QDD (Quality Assurance and Curriculum Development) Views
+# =====================================================
+
+def _qdd_dashboard_context(request):
+    """Helper function to build context for QDD dashboard views with qualification filtering."""
+    
+    # Statuses for assessments pending QDD review
+    pending_qdd_statuses = [
+        "QDD Review",
+        "pending_qdd",
+    ]
+    
+    # Statuses for completed QDD reviews
+    completed_qdd_statuses = [
+        "pending_etqa",
+        "Submitted to ETQA",
+        "Returned for Changes",
+        "etqa_approved",
+        "Approved by QDD",
+    ]
+
+    # Get user's qualification and role
+    user = request.user
+    user_qualification = getattr(user, 'qualification', None)
+    user_role = getattr(user, 'role', '')
+    
+    # Get selected qualification from query params (for filtering)
+    selected_qualification_id = request.GET.get('qualification_id')
+    filter_qualification = None
+    
+    # Determine which qualification to filter by
+    if user.is_superuser or user_role in {'admin', 'moderator', 'qcto', 'etqa'}:
+        # Admins and elevated roles can see all or filter by selected qualification
+        if selected_qualification_id:
+            try:
+                filter_qualification = Qualification.objects.get(id=selected_qualification_id)
+            except Qualification.DoesNotExist:
+                filter_qualification = None
+    else:
+        # Non-admin users see only their assigned qualification
+        filter_qualification = user_qualification
+    
+    # Build base querysets
+    base_pending = Assessment.objects.select_related("qualification", "created_by").filter(
+        status__in=pending_qdd_statuses,
+        paper__isnull=False,
+    )
+    
+    base_archived = Assessment.objects.select_related("qualification", "created_by").filter(
+        status__in=completed_qdd_statuses,
+        paper__isnull=False,
+    )
+    
+    # Apply qualification filtering
+    if filter_qualification:
+        pending_assessments = base_pending.filter(qualification=filter_qualification).order_by("-created_at")
+        archived_assessments = base_archived.filter(qualification=filter_qualification).order_by("-status_changed_at")
+    else:
+        pending_assessments = base_pending.order_by("-created_at")
+        archived_assessments = base_archived.order_by("-status_changed_at")
+
+    today = now().date()
+    stats = {
+        "pending_reviews": pending_assessments.count(),
+        "reviewed_today": Assessment.objects.filter(
+            status__in=completed_qdd_statuses,
+            status_changed_at__date=today,
+        ).count(),
+        "total_reviewed": Assessment.objects.filter(
+            status__in=completed_qdd_statuses
+        ).count(),
+        "archived_assessments": archived_assessments.count(),
+    }
+    
+    # Get all qualifications for dropdown (only if user is admin)
+    all_qualifications = Qualification.objects.all() if (user.is_superuser or user_role in {'admin', 'moderator', 'qcto', 'etqa'}) else []
+
+    return {
+        "pending_assessments": pending_assessments,
+        "archived_assessments": archived_assessments,
+        "stats": stats,
+        "today": now(),
+        "all_qualifications": all_qualifications,
+        "selected_qualification": filter_qualification,
+        "user_qualification": user_qualification,
+    }
+
+
+@login_required
+def qdd_developer_dashboard(request):
+    """QDD Reviewer Dashboard - View assessments pending QDD review."""
+    context = _qdd_dashboard_context(request)
+    context["page_title"] = "QDD Reviewer Dashboard"
+    return render(request, "core/qdd/qdd_developer.html", context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def qdd_moderate_assessment(request, eisa_id):
+    """
+    Handle QDD assessment review.
+    
+    Actions:
+    - approve: Forward to ETQA (status -> 'pending_etqa')
+    - return: Return to Moderator (status -> 'pending_moderation')
+    
+    Optional file upload for QDD review report (saved to moderator_report field).
+    Includes permission check for qualification matching.
+    """
+    assessment = get_object_or_404(Assessment, eisa_id=eisa_id)
+    
+    # Permission check: verify user can moderate this assessment
+    user = request.user
+    user_qualification = getattr(user, 'qualification', None)
+    user_role = getattr(user, 'role', '')
+    
+    # Allow if admin/superuser or qualification matches
+    if not (user.is_superuser or user_role in {'admin', 'qcto', 'etqa'} or user_qualification == assessment.qualification):
+        messages.error(request, "You do not have permission to moderate assessments outside your qualification.")
+        return redirect("qdd_developer_dashboard")
+
+    action = request.POST.get("action")
+
+    if action == "approve":
+        # Forward to ETQA
+        if "moderator_report" in request.FILES:
+            report_file = request.FILES["moderator_report"]
+            allowed_extensions = [".doc", ".docx"]
+            file_extension = os.path.splitext(report_file.name)[1].lower()
+            if file_extension not in allowed_extensions:
+                messages.error(request, "Please upload a Word document (.doc or .docx).")
+                return redirect("qdd_developer_dashboard")
+            assessment.moderator_report.save(
+                f"qdd_report_{eisa_id}{file_extension}", report_file
+            )
+        
+        assessment.status = "pending_etqa"
+        assessment.status_changed_at = now()
+        assessment.status_changed_by = request.user
+        assessment.save(
+            update_fields=[
+                "status",
+                "status_changed_at",
+                "status_changed_by",
+                "moderator_report",
+            ]
+        )
+        messages.success(
+            request, f"{assessment.eisa_id} forwarded to ETQA for review."
+        )
+        return redirect("qdd_developer_dashboard")
+
+    if action == "return":
+        # Return to Moderator
+        assessment.status = "pending_moderation"
+        assessment.status_changed_at = now()
+        assessment.status_changed_by = request.user
+        assessment.save(
+            update_fields=[
+                "status",
+                "status_changed_at",
+                "status_changed_by",
+            ]
+        )
+        messages.success(request, f"{assessment.eisa_id} returned to Moderator for changes.")
+        return redirect("qdd_developer_dashboard")
+
+    messages.error(request, "Invalid action.")
+    return redirect("qdd_developer_dashboard")
+
 
 ######new views####################################################################################

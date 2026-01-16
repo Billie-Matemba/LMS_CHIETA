@@ -286,6 +286,16 @@
     .writing-overlay.disabled {
       pointer-events: none !important;
     }
+    
+    /* New styles for submitted state */
+    .form-submitted input:not([name='csrfmiddlewaretoken']),
+    .form-submitted textarea,
+    .form-submitted select,
+    .form-submitted button:not([type='submit']) {
+        opacity: 0.6;
+        pointer-events: none;
+        background-color: #f5f5f5;
+    }
   </style>
 </head>
 <body>
@@ -454,597 +464,812 @@
   </div>
 
  <script>
-   // ==================== SUBMISSION PROTECTION ====================
-  const examForm = document.getElementById('exam-form');
-  const submissionOverlay = document.getElementById('submissionOverlay');
-  const warningBanner = document.getElementById('warningBanner');
-  const submitBtn = document.getElementById('submitBtn');
-  const examContainer = document.getElementById('examContainer');
+// ==================== GLOBAL VARIABLES ====================
+let examForm = null;
+let isSubmitting = false;
+let hasChanges = false;
+let forceSubmitted = false;
+let hydrateOutlineFromField = null;
 
-  // Get CSRF token from the form
-  const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+const overlayToggle = document.getElementById('toggleOverlay');
+const overlays = Array.from(document.querySelectorAll('.writing-overlay'));
+const autosaveStatus = document.getElementById('autosaveStatus');
+const countdownClock = document.getElementById('countdownClock');
+const assessmentKey = 'assessment_{{ assessment.id|default:"0" }}_draft';
+const summaryToggle = document.getElementById('answerPanelToggle');
+const summaryPanel = document.getElementById('answerPanel');
+const summaryClose = document.getElementById('answerPanelClose');
+const outlinePanel = document.getElementById('answerOutlinePanel');
+const outlineContainer = document.getElementById('answerOutline');
+const outlinePayloadField = document.getElementById('answerOutlinePayload');
+const outlineResetButton = document.getElementById('outlineResetButton');
+const submissionOverlay = document.getElementById('submissionOverlay');
+const warningBanner = document.getElementById('warningBanner');
+const submitBtn = document.getElementById('submitBtn');
+const examContainer = document.getElementById('examContainer');
 
-  let isSubmitting = false;
-  let hasChanges = false;
-  let forceSubmitted = false;
+// ==================== INITIALIZATION ====================
 
-  // Track form changes
-  const formInputs = examForm.querySelectorAll('input, textarea, select');
-  formInputs.forEach(input => {
-    if (input.name !== 'csrfmiddlewaretoken') {
-      input.addEventListener('input', () => {
-        hasChanges = true;
-        // Show warning banner when user starts typing
-        if (!warningBanner.style.display || warningBanner.style.display === 'none') {
-          warningBanner.style.display = 'block';
-        }
-      });
-      input.addEventListener('change', () => {
-        hasChanges = true;
-      });
+function initializeExamForm() {
+    // Get the form element
+    examForm = document.getElementById('exam-form');
+
+    if (!examForm) {
+        console.error('Form with id "exam-form" not found!');
+        return;
     }
-  });
 
-  // Function to submit the form
-  function submitExam() {
-    if (isSubmitting || forceSubmitted) return;
+    console.log('Exam form found:', examForm);
 
+    // Track form changes
+    const formInputs = examForm.querySelectorAll('input, textarea, select');
+    formInputs.forEach(input => {
+        if (input.name !== 'csrfmiddlewaretoken') {
+            input.addEventListener('input', () => {
+                hasChanges = true;
+                if (warningBanner && warningBanner.style.display !== 'block') {
+                    warningBanner.style.display = 'block';
+                }
+            });
+            input.addEventListener('change', () => {
+                hasChanges = true;
+            });
+        }
+    });
+
+    // Add form submit handler
+    examForm.addEventListener('submit', handleFormSubmit);
+
+    console.log('Form initialized successfully');
+}
+
+function handleFormSubmit(e) {
+    console.log('Form submit event triggered');
+
+    if (isSubmitting || forceSubmitted) {
+        console.log('Already submitting, preventing duplicate submission');
+        e.preventDefault();
+        return false;
+    }
+
+    // Mark as submitting
     isSubmitting = true;
     forceSubmitted = true;
-    submissionOverlay.style.display = 'flex';
-    warningBanner.style.display = 'none';
-    examContainer.classList.add('exam-submitted');
 
-    // Disable all form inputs
-    formInputs.forEach(input => {
-      input.disabled = true;
-    });
-    submitBtn.disabled = true;
-
-    // Final sync before submission
+    // Final sync and cleanup
     syncOverlaysToHidden();
     clearAutosave();
 
-    // Ensure CSRF token is present for programmatic submission
-    ensureCSRFToken();
-
-    // Submit the form normally - let Django handle the redirect
-    examForm.submit();
-  }
-
-  // Function to ensure CSRF token is present
-  function ensureCSRFToken() {
-    let csrfField = examForm.querySelector('[name=csrfmiddlewaretoken]');
-    if (!csrfField) {
-      // Create CSRF token field if it doesn't exist
-      csrfField = document.createElement('input');
-      csrfField.type = 'hidden';
-      csrfField.name = 'csrfmiddlewaretoken';
-      csrfField.value = csrfToken;
-      examForm.appendChild(csrfField);
-    } else if (!csrfField.value && csrfToken) {
-      // Ensure the CSRF token has a value
-      csrfField.value = csrfToken;
+    // Show submission overlay
+    if (submissionOverlay) {
+        submissionOverlay.style.display = 'flex';
     }
-  }
+    if (warningBanner) {
+        warningBanner.style.display = 'none';
+    }
 
-  // Prevent back button
-  window.history.pushState(null, null, window.location.href);
-  window.addEventListener('popstate', function (event) {
+    // Change UI to show submission state without disabling inputs
+    examContainer.classList.add('form-submitted');
+    
+    // Change submit button text and disable it
+    if (submitBtn) {
+        submitBtn.textContent = 'Submitting...';
+        submitBtn.disabled = true;
+    }
+
+    // Allow the form to submit naturally - all inputs remain enabled so data gets sent
+    return true;
+}
+
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeExamForm);
+} else {
+    // DOM already loaded
+    initializeExamForm();
+}
+
+// ==================== SUBMISSION PROTECTION ====================
+
+function submitExam() {
+    if (!examForm || isSubmitting || forceSubmitted) {
+        console.log('Cannot submit: form not ready or already submitting');
+        return;
+    }
+    
+    console.log('Programmatic submit triggered');
+    
+    // Trigger the form's submit event (which will go through handleFormSubmit)
+    examForm.requestSubmit ? examForm.requestSubmit() : examForm.submit();
+}
+
+// Prevent back button navigation
+window.history.pushState(null, null, window.location.href);
+window.addEventListener('popstate', function(event) {
     if (hasChanges && !isSubmitting && !forceSubmitted) {
-      window.history.pushState(null, null, window.location.href);
-      submitExam(); // Auto submit without confirmation
+        window.history.pushState(null, null, window.location.href);
+        submitExam();
     }
-  });
+});
 
-  // Handle page refresh/reload
-  window.addEventListener('beforeunload', function (e) {
+// Handle page refresh/reload
+window.addEventListener('beforeunload', function(e) {
     if (hasChanges && !isSubmitting && !forceSubmitted) {
-      // For beforeunload, we need to use fetch API to submit
-      e.preventDefault();
-      
-      // Use fetch to submit form data before leaving
-      const formData = new FormData(examForm);
-      ensureCSRFToken(); // Make sure CSRF token is included
-      
-      // Use navigator.sendBeacon for more reliable submission during page unload
-      if (navigator.sendBeacon) {
-        syncOverlaysToHidden();
-        const data = new FormData(examForm);
-        navigator.sendBeacon(examForm.action, data);
-      }
-      
-      // Still call submitExam for the UI feedback
-      submitExam();
-      
-      // Return nothing to prevent the default dialog
-      return undefined;
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return e.returnValue;
     }
-  });
+});
 
-  // Handle page visibility change (tab switch)
-  document.addEventListener('visibilitychange', function () {
+// Handle page visibility change
+document.addEventListener('visibilitychange', function() {
     if (document.hidden && hasChanges && !isSubmitting && !forceSubmitted) {
-      submitExam();
+        submitExam();
     }
-  });
+});
 
-  // Handle F5 and Ctrl+R
-  document.addEventListener('keydown', function (e) {
+// Handle keyboard shortcuts
+document.addEventListener('keydown', function(e) {
     if ((e.ctrlKey && e.key === 'r') || e.key === 'F5') {
-      if (hasChanges && !isSubmitting && !forceSubmitted) {
-        e.preventDefault();
-        submitExam();
-      }
+        if (hasChanges && !isSubmitting && !forceSubmitted) {
+            e.preventDefault();
+            submitExam();
+        }
     }
-
-    // Prevent Ctrl+W (close tab) without submission
+    
     if (e.ctrlKey && e.key === 'w') {
-      if (hasChanges && !isSubmitting && !forceSubmitted) {
-        e.preventDefault();
-        submitExam();
-      }
+        if (hasChanges && !isSubmitting && !forceSubmitted) {
+            e.preventDefault();
+            submitExam();
+        }
     }
-  });
+});
 
-  // Regular form submission - let it proceed normally
-  examForm.addEventListener('submit', function (e) {
-    if (!isSubmitting && !forceSubmitted) {
-      // Just do the final preparations, then let the form submit normally
-      syncOverlaysToHidden();
-      clearAutosave();
-      ensureCSRFToken(); // Ensure CSRF token is present
-      isSubmitting = true;
-      forceSubmitted = true;
-      submissionOverlay.style.display = 'flex';
-      // Don't prevent default - let the form submit normally
-    } else {
-      e.preventDefault(); // Prevent if already submitting
-    }
-  });
+// ==================== EXISTING EXAM FUNCTIONALITY ====================
 
-  // ==================== EXISTING EXAM FUNCTIONALITY ====================
-  const overlayToggle = document.getElementById('toggleOverlay');
-  const overlays = Array.from(document.querySelectorAll('.writing-overlay'));
-  const autosaveStatus = document.getElementById('autosaveStatus');
-  const countdownClock = document.getElementById('countdownClock');
-  const assessmentKey = 'assessment_{{ assessment.id|default:"0" }}_draft';
-  const summaryToggle = document.getElementById('answerPanelToggle');
-  const summaryPanel = document.getElementById('answerPanel');
-  const summaryClose = document.getElementById('answerPanelClose');
-  const outlinePanel = document.getElementById('answerOutlinePanel');
-  const outlineContainer = document.getElementById('answerOutline');
-  const outlinePayloadField = document.getElementById('answerOutlinePayload');
-  const outlineResetButton = document.getElementById('outlineResetButton');
-  let hydrateOutlineFromField = null;
+// Disable sticky notes functionality by default
+if (overlays) {
+    overlays.forEach(overlay => {
+        overlay.classList.add('disabled');
+        overlay.dataset.active = "false";
+    });
+}
 
-  // Disable sticky notes functionality by default
-  overlays.forEach(overlay => {
-    overlay.classList.add('disabled');
-    overlay.dataset.active = "false";
-  });
-
-  function setSummaryVisibility(show) {
+function setSummaryVisibility(show) {
     if (!summaryPanel) return;
     if (show) {
-      summaryPanel.classList.add('visible');
-      summaryPanel.setAttribute('aria-hidden', 'false');
-      summaryToggle?.setAttribute('aria-expanded', 'true');
+        summaryPanel.classList.add('visible');
+        summaryPanel.setAttribute('aria-hidden', 'false');
+        summaryToggle?.setAttribute('aria-expanded', 'true');
     } else {
-      summaryPanel.classList.remove('visible');
-      summaryPanel.setAttribute('aria-hidden', 'true');
-      summaryToggle?.setAttribute('aria-expanded', 'false');
+        summaryPanel.classList.remove('visible');
+        summaryPanel.setAttribute('aria-hidden', 'true');
+        summaryToggle?.setAttribute('aria-expanded', 'false');
     }
-  }
+}
 
-  if (summaryPanel) {
+if (summaryPanel) {
     setSummaryVisibility(false);
-  }
+}
 
-  summaryToggle?.addEventListener('click', () => {
+summaryToggle?.addEventListener('click', () => {
     const shouldShow = !(summaryPanel?.classList.contains('visible'));
     setSummaryVisibility(shouldShow);
-  });
-  summaryClose?.addEventListener('click', () => setSummaryVisibility(false));
-  document.addEventListener('keydown', (event) => {
+});
+summaryClose?.addEventListener('click', () => setSummaryVisibility(false));
+document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
-      setSummaryVisibility(false);
+        setSummaryVisibility(false);
     }
-  });
+});
 
-  /* Lightweight accordion behaviour for the answer summary (no Bootstrap JS) */
-  const answerAccordion = document.getElementById('answerAccordion');
-  if (answerAccordion) {
+/* Lightweight accordion behaviour for the answer summary (no Bootstrap JS) */
+const answerAccordion = document.getElementById('answerAccordion');
+if (answerAccordion) {
     const accordionButtons = Array.from(answerAccordion.querySelectorAll('.accordion-button'));
     const accordionPanels = Array.from(answerAccordion.querySelectorAll('.accordion-collapse'));
 
     const closeAllPanels = () => {
-      accordionPanels.forEach((panel) => {
-        panel.classList.remove('show');
-        panel.setAttribute('aria-hidden', 'true');
-      });
-      accordionButtons.forEach((button) => {
-        button.classList.add('collapsed');
-        button.setAttribute('aria-expanded', 'false');
-      });
+        accordionPanels.forEach((panel) => {
+            panel.classList.remove('show');
+            panel.setAttribute('aria-hidden', 'true');
+        });
+        accordionButtons.forEach((button) => {
+            button.classList.add('collapsed');
+            button.setAttribute('aria-expanded', 'false');
+        });
     };
 
-    /* Initialise aria state based on existing markup */
     accordionPanels.forEach((panel) => {
-      panel.setAttribute('aria-hidden', panel.classList.contains('show') ? 'false' : 'true');
+        panel.setAttribute('aria-hidden', panel.classList.contains('show') ? 'false' : 'true');
     });
     accordionButtons.forEach((button) => {
-      const targetSelector = button.getAttribute('data-bs-target');
-      const panel = targetSelector ? document.querySelector(targetSelector) : null;
-      if (!panel) return;
-      button.addEventListener('click', (event) => {
-        event.preventDefault();
-        const willClose = panel.classList.contains('show');
-        closeAllPanels();
-        if (!willClose) {
-          panel.classList.add('show');
-          panel.setAttribute('aria-hidden', 'false');
-          button.classList.remove('collapsed');
-          button.setAttribute('aria-expanded', 'true');
-        }
-      });
+        const targetSelector = button.getAttribute('data-bs-target');
+        const panel = targetSelector ? document.querySelector(targetSelector) : null;
+        if (!panel) return;
+        button.addEventListener('click', (event) => {
+            event.preventDefault();
+            const willClose = panel.classList.contains('show');
+            closeAllPanels();
+            if (!willClose) {
+                panel.classList.add('show');
+                panel.setAttribute('aria-hidden', 'false');
+                button.classList.remove('collapsed');
+                button.setAttribute('aria-expanded', 'true');
+            }
+        });
     });
-  }
+}
 
-  function linkSummaryFields() {
+function linkSummaryFields() {
     const summaryFields = document.querySelectorAll('.answer-summary-field[data-linked]');
     summaryFields.forEach((summaryField) => {
-      const targetId = summaryField.dataset.linked;
-      if (!targetId) return;
-      let target = document.getElementById(targetId);
-      if (!(target instanceof HTMLTextAreaElement)) {
-        target = document.createElement('textarea');
-        target.id = targetId;
-        target.name = targetId;
-        target.style.display = 'none';
-        examForm?.appendChild(target);
-      }
+        const targetId = summaryField.dataset.linked;
+        if (!targetId) return;
+        let target = document.getElementById(targetId);
+        if (!(target instanceof HTMLTextAreaElement)) {
+            target = document.createElement('textarea');
+            target.id = targetId;
+            target.name = targetId;
+            target.style.display = 'none';
+            examForm?.appendChild(target);
+        }
 
-      const resizeField = (field) => {
-        if (!field) return;
-        field.style.height = 'auto';
-        field.style.height = (field.scrollHeight + 6) + 'px';
-      };
+        const resizeField = (field) => {
+            if (!field) return;
+            field.style.height = 'auto';
+            field.style.height = (field.scrollHeight + 6) + 'px';
+        };
 
-      let syncing = false;
-      const syncFromTarget = () => {
-        if (syncing) return;
-        syncing = true;
-        summaryField.value = target.value;
-        resizeField(summaryField);
-        syncing = false;
-      };
-      const syncToTarget = () => {
-        if (syncing) return;
-        syncing = true;
-        target.value = summaryField.value;
-        target.dispatchEvent(new Event('input', { bubbles: true }));
-        resizeField(summaryField);
-        syncing = false;
-      };
+        let syncing = false;
+        const syncFromTarget = () => {
+            if (syncing) return;
+            syncing = true;
+            summaryField.value = target.value;
+            resizeField(summaryField);
+            syncing = false;
+        };
+        const syncToTarget = () => {
+            if (syncing) return;
+            syncing = true;
+            target.value = summaryField.value;
+            target.dispatchEvent(new Event('input', { bubbles: true }));
+            resizeField(summaryField);
+            syncing = false;
+        };
 
-      target.addEventListener('input', syncFromTarget);
-      summaryField.addEventListener('input', syncToTarget);
-      syncFromTarget();
+        target.addEventListener('input', syncFromTarget);
+        summaryField.addEventListener('input', syncToTarget);
+        syncFromTarget();
     });
-  }
-  linkSummaryFields();
+}
 
-  if (outlinePanel && outlineContainer && outlinePayloadField) {
+// Initialize after DOM loads
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', linkSummaryFields);
+} else {
+    linkSummaryFields();
+}
+
+if (outlinePanel && outlineContainer && outlinePayloadField) {
     const DEFAULT_OUTLINE_ROOTS = ['1.1', '2.1'];
 
     const makeDefaultOutlineState = () => DEFAULT_OUTLINE_ROOTS.map((id) => ({
-      id,
-      counter: 1,
-      children: [],
+        id,
+        counter: 1,
+        children: [],
     }));
 
     let outlineState = makeDefaultOutlineState();
 
     const updateOutlineField = () => {
-      if (!outlinePayloadField) {
-        return;
-      }
-      const payload = outlineState.map((root) => ({
-        id: root.id,
-        children: root.children.map((child) => ({
-          id: child.id,
-          text: child.text || '',
-        })),
-      }));
-      try {
-        outlinePayloadField.value = JSON.stringify(payload);
-      } catch (err) {
-        outlinePayloadField.value = '[]';
-      }
+        if (!outlinePayloadField) {
+            return;
+        }
+        const payload = outlineState.map((root) => ({
+            id: root.id,
+            children: root.children.map((child) => ({
+                id: child.id,
+                text: child.text || '',
+            })),
+        }));
+        try {
+            outlinePayloadField.value = JSON.stringify(payload);
+        } catch (err) {
+            outlinePayloadField.value = '[]';
+        }
     };
 
     function addChildToRoot(rootId, presetValue = '') {
-      const root = outlineState.find((item) => item.id === rootId);
-      if (!root) {
-        return;
-      }
-      const childNumber = `${root.id}.${root.counter}`;
-      root.counter += 1;
-      root.children.push({
-        id: childNumber,
-        text: presetValue || '',
-      });
-      renderOutline();
-      autosaveNow();
+        const root = outlineState.find((item) => item.id === rootId);
+        if (!root) {
+            return;
+        }
+        const childNumber = `${root.id}.${root.counter}`;
+        root.counter += 1;
+        root.children.push({
+            id: childNumber,
+            text: presetValue || '',
+        });
+        renderOutline();
+        autosaveNow();
     }
 
     function removeChildFromRoot(rootId, childId) {
-      const root = outlineState.find((item) => item.id === rootId);
-      if (!root) {
-        return;
-      }
-      root.children = root.children.filter((child) => child.id !== childId);
-      renderOutline();
-      autosaveNow();
+        const root = outlineState.find((item) => item.id === rootId);
+        if (!root) {
+            return;
+        }
+        root.children = root.children.filter((child) => child.id !== childId);
+        renderOutline();
+        autosaveNow();
     }
 
     function renderOutline() {
-      if (!outlineContainer) {
-        return;
-      }
-      outlineContainer.innerHTML = '';
-      const fragment = document.createDocumentFragment();
-
-      outlineState.forEach((root) => {
-        const section = document.createElement('div');
-        section.className = 'outline-section';
-
-        const header = document.createElement('div');
-        header.className = 'outline-section-header';
-
-        const title = document.createElement('div');
-        title.className = 'outline-section-title';
-        title.textContent = `Parent ${root.id}`;
-        header.appendChild(title);
-
-        const addBtn = document.createElement('button');
-        addBtn.type = 'button';
-        addBtn.className = 'btn btn-sm btn-outline-primary';
-        addBtn.innerHTML = '<i class="fas fa-plus"></i> Add sub-point';
-        addBtn.addEventListener('click', () => addChildToRoot(root.id));
-        header.appendChild(addBtn);
-
-        section.appendChild(header);
-
-        const itemsWrap = document.createElement('div');
-        itemsWrap.className = 'outline-items';
-
-        if (!root.children.length) {
-          const placeholder = document.createElement('div');
-          placeholder.className = 'outline-empty';
-          placeholder.textContent = 'No sub-points yet. Use "Add sub-point" to start.';
-          itemsWrap.appendChild(placeholder);
-        } else {
-          root.children.forEach((child) => {
-            const item = document.createElement('div');
-            item.className = 'outline-item';
-
-            const label = document.createElement('div');
-            label.className = 'outline-item-label';
-            label.textContent = child.id;
-            item.appendChild(label);
-
-            const textarea = document.createElement('textarea');
-            textarea.className = 'form-control outline-item-textarea';
-            textarea.rows = 3;
-            textarea.placeholder = 'Capture quick notes for this sub-point...';
-            textarea.value = child.text || '';
-            textarea.addEventListener('input', () => {
-              child.text = textarea.value;
-              updateOutlineField();
-              autosaveNow();
-            });
-            item.appendChild(textarea);
-
-            const actions = document.createElement('div');
-            actions.className = 'outline-item-actions';
-            const removeBtn = document.createElement('button');
-            removeBtn.type = 'button';
-            removeBtn.className = 'btn btn-sm btn-outline-danger';
-            removeBtn.innerHTML = '<i class="fas fa-minus"></i>';
-            removeBtn.setAttribute('aria-label', `Remove ${child.id}`);
-            removeBtn.addEventListener('click', () => removeChildFromRoot(root.id, child.id));
-            actions.appendChild(removeBtn);
-            item.appendChild(actions);
-
-            itemsWrap.appendChild(item);
-          });
+        if (!outlineContainer) {
+            return;
         }
+        outlineContainer.innerHTML = '';
+        const fragment = document.createDocumentFragment();
 
-        section.appendChild(itemsWrap);
-        fragment.appendChild(section);
-      });
+        outlineState.forEach((root) => {
+            const section = document.createElement('div');
+            section.className = 'outline-section';
 
-      outlineContainer.appendChild(fragment);
-      updateOutlineField();
+            const header = document.createElement('div');
+            header.className = 'outline-section-header';
+
+            const title = document.createElement('div');
+            title.className = 'outline-section-title';
+            title.textContent = `Parent ${root.id}`;
+            header.appendChild(title);
+
+            const addBtn = document.createElement('button');
+            addBtn.type = 'button';
+            addBtn.className = 'btn btn-sm btn-outline-primary';
+            addBtn.innerHTML = '<i class="fas fa-plus"></i> Add sub-point';
+            addBtn.addEventListener('click', () => addChildToRoot(root.id));
+            header.appendChild(addBtn);
+
+            section.appendChild(header);
+
+            const itemsWrap = document.createElement('div');
+            itemsWrap.className = 'outline-items';
+
+            if (!root.children.length) {
+                const placeholder = document.createElement('div');
+                placeholder.className = 'outline-empty';
+                placeholder.textContent = 'No sub-points yet. Use "Add sub-point" to start.';
+                itemsWrap.appendChild(placeholder);
+            } else {
+                root.children.forEach((child) => {
+                    const item = document.createElement('div');
+                    item.className = 'outline-item';
+
+                    const label = document.createElement('div');
+                    label.className = 'outline-item-label';
+                    label.textContent = child.id;
+                    item.appendChild(label);
+
+                    const textarea = document.createElement('textarea');
+                    textarea.className = 'form-control outline-item-textarea';
+                    textarea.rows = 3;
+                    textarea.placeholder = 'Capture quick notes for this sub-point...';
+                    textarea.value = child.text || '';
+                    textarea.addEventListener('input', () => {
+                        child.text = textarea.value;
+                        updateOutlineField();
+                        autosaveNow();
+                    });
+                    item.appendChild(textarea);
+
+                    const actions = document.createElement('div');
+                    actions.className = 'outline-item-actions';
+                    const removeBtn = document.createElement('button');
+                    removeBtn.type = 'button';
+                    removeBtn.className = 'btn btn-sm btn-outline-danger';
+                    removeBtn.innerHTML = '<i class="fas fa-minus"></i>';
+                    removeBtn.setAttribute('aria-label', `Remove ${child.id}`);
+                    removeBtn.addEventListener('click', () => removeChildFromRoot(root.id, child.id));
+                    actions.appendChild(removeBtn);
+                    item.appendChild(actions);
+
+                    itemsWrap.appendChild(item);
+                });
+            }
+
+            section.appendChild(itemsWrap);
+            fragment.appendChild(section);
+        });
+
+        outlineContainer.appendChild(fragment);
+        updateOutlineField();
     }
 
     hydrateOutlineFromField = () => {
-      outlineState = makeDefaultOutlineState();
-      const raw = outlinePayloadField.value;
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) {
-            parsed.forEach((entry) => {
-              if (!entry || typeof entry.id !== 'string') {
-                return;
-              }
-              const target = outlineState.find((root) => root.id === entry.id);
-              if (!target) {
-                return;
-              }
-              const children = Array.isArray(entry.children) ? entry.children : [];
-              const normalized = [];
-              let maxSuffix = 0;
-              children.forEach((child) => {
-                if (!child || typeof child.id !== 'string') {
-                  return;
+        outlineState = makeDefaultOutlineState();
+        const raw = outlinePayloadField.value;
+        if (raw) {
+            try {
+                const parsed = JSON.parse(raw);
+                if (Array.isArray(parsed)) {
+                    parsed.forEach((entry) => {
+                        if (!entry || typeof entry.id !== 'string') {
+                            return;
+                        }
+                        const target = outlineState.find((root) => root.id === entry.id);
+                        if (!target) {
+                            return;
+                        }
+                        const children = Array.isArray(entry.children) ? entry.children : [];
+                        const normalized = [];
+                        let maxSuffix = 0;
+                        children.forEach((child) => {
+                            if (!child || typeof child.id !== 'string') {
+                                return;
+                            }
+                            const suffix = parseInt(child.id.split('.').pop() || '', 10);
+                            if (Number.isFinite(suffix)) {
+                                maxSuffix = Math.max(maxSuffix, suffix);
+                            }
+                            normalized.push({
+                                id: child.id,
+                                text: typeof child.text === 'string' ? child.text : '',
+                            });
+                        });
+                        target.children = normalized;
+                        target.counter = Math.max(maxSuffix + 1, 1);
+                    });
                 }
-                const suffix = parseInt(child.id.split('.').pop() || '', 10);
-                if (Number.isFinite(suffix)) {
-                  maxSuffix = Math.max(maxSuffix, suffix);
-                }
-                normalized.push({
-                  id: child.id,
-                  text: typeof child.text === 'string' ? child.text : '',
-                });
-              });
-              target.children = normalized;
-              target.counter = Math.max(maxSuffix + 1, 1);
-            });
-          }
-        } catch (err) {
-          outlineState = makeDefaultOutlineState();
+            } catch (err) {
+                outlineState = makeDefaultOutlineState();
+            }
         }
-      }
-      renderOutline();
+        renderOutline();
     };
 
     outlineResetButton?.addEventListener('click', () => {
-      outlineState = makeDefaultOutlineState();
-      renderOutline();
-      autosaveNow();
+        outlineState = makeDefaultOutlineState();
+        renderOutline();
+        autosaveNow();
     });
 
-    hydrateOutlineFromField();
-  }
+    // Initialize after DOM loads
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', hydrateOutlineFromField);
+    } else {
+        hydrateOutlineFromField();
+    }
+}
 
-  /* Auto-resize answer textareas */
-  document.querySelectorAll('textarea[data-autosize="true"]').forEach((ta) => {
+/* Auto-resize answer textareas */
+document.querySelectorAll('textarea[data-autosize="true"]').forEach((ta) => {
     const autoResize = () => {
-      ta.style.height = 'auto';
-      ta.style.height = (ta.scrollHeight + 6) + 'px';
+        ta.style.height = 'auto';
+        ta.style.height = (ta.scrollHeight + 6) + 'px';
     };
     ta.addEventListener('input', autoResize);
     autoResize();
-  });
+});
 
-  /* Serialize overlay contents into hidden inputs */
-  function syncOverlaysToHidden() {
+/* Serialize overlay contents into hidden inputs */
+function syncOverlaysToHidden() {
+    if (!overlays) return;
     overlays.forEach((overlay) => {
-      const inputName = overlay.dataset.overlay;
-      if (!inputName) return;
-      const hiddenField = document.querySelector(`input[name="${inputName}"]`);
-      if (!hiddenField) return;
-      hiddenField.value = overlay.innerHTML;
+        const inputName = overlay.dataset.overlay;
+        if (!inputName) return;
+        const hiddenField = document.querySelector(`input[name="${inputName}"]`);
+        if (!hiddenField) return;
+        hiddenField.value = overlay.innerHTML;
     });
-  }
+}
 
-  function applyOverlayState(active) {
+function applyOverlayState(active) {
+    if (!overlays) return;
     overlays.forEach((overlay) => {
-      if (active) {
-        overlay.classList.remove('disabled');
-        overlay.dataset.active = "true";
-      } else {
-        overlay.classList.add('disabled');
-        overlay.dataset.active = "false";
-      }
+        if (active) {
+            overlay.classList.remove('disabled');
+            overlay.dataset.active = "true";
+        } else {
+            overlay.classList.add('disabled');
+            overlay.dataset.active = "false";
+        }
     });
-  }
+}
 
-  overlayToggle.addEventListener('change', () => {
-    applyOverlayState(overlayToggle.checked);
-  });
-  // Start with overlays disabled
-  applyOverlayState(false);
-  overlayToggle.checked = false;
+if (overlayToggle) {
+    overlayToggle.addEventListener('change', () => {
+        applyOverlayState(overlayToggle.checked);
+    });
+    // Start with overlays disabled
+    applyOverlayState(false);
+    overlayToggle.checked = false;
+}
 
-  /* Autosave to localStorage */
-  function getDraftPayload() {
+/* Autosave to localStorage */
+function getDraftPayload() {
     syncOverlaysToHidden();
+    if (!examForm) return {};
     const formData = new FormData(examForm);
     const payload = {};
     formData.forEach((value, key) => {
-      payload[key] = value;
+        // Exclude CSRF token from autosave
+        if (key !== 'csrfmiddlewaretoken') {
+            payload[key] = value;
+        }
     });
     return payload;
-  }
+}
 
-  function applyAutosaveState(state) {
-    if (!state) return;
+function applyAutosaveState(state) {
+    if (!state || !examForm) return;
     Object.entries(state).forEach(([key, value]) => {
-      const input = examForm.elements.namedItem(key);
-      if (!input) return;
-      if (input instanceof HTMLTextAreaElement || input instanceof HTMLInputElement) {
-        input.value = value;
-      }
+        const input = examForm.elements.namedItem(key);
+        if (!input) return;
+        if (input instanceof HTMLTextAreaElement || input instanceof HTMLInputElement) {
+            input.value = value;
+        }
     });
     if (typeof hydrateOutlineFromField === 'function') {
-      hydrateOutlineFromField();
+        hydrateOutlineFromField();
     }
     syncOverlaysToHidden();
-  }
+}
 
-  function setAutosaveStatus(status, message) {
+function setAutosaveStatus(status, message) {
+    if (!autosaveStatus) return;
     autosaveStatus.dataset.status = status;
     autosaveStatus.textContent = message;
-  }
+}
 
-  function autosaveNow() {
+function autosaveNow() {
     if (isSubmitting || forceSubmitted) return;
     try {
-      const payload = getDraftPayload();
-      localStorage.setItem(assessmentKey, JSON.stringify(payload));
-      const stamp = new Date().toLocaleTimeString();
-      setAutosaveStatus('saving', `Saved locally at ${stamp}`);
-      setTimeout(() => setAutosaveStatus('idle', 'Autosave ready'), 2500);
+        const payload = getDraftPayload();
+        localStorage.setItem(assessmentKey, JSON.stringify(payload));
+        const stamp = new Date().toLocaleTimeString();
+        setAutosaveStatus('saving', `Saved locally at ${stamp}`);
+        setTimeout(() => setAutosaveStatus('idle', 'Autosave ready'), 2500);
     } catch (err) {
-      console.error(err);
-      setAutosaveStatus('error', 'Autosave failed (check storage quota)');
+        console.error(err);
+        setAutosaveStatus('error', 'Autosave failed (check storage quota)');
     }
-  }
+}
 
-  function clearAutosave() {
+function clearAutosave() {
     try {
-      localStorage.removeItem(assessmentKey);
+        localStorage.removeItem(assessmentKey);
     } catch (err) {
-      console.warn('Unable to clear draft', err);
+        console.warn('Unable to clear draft', err);
     }
-  }
+}
 
-  (function restoreDraft() {
+(function restoreDraft() {
     try {
-      const draft = localStorage.getItem(assessmentKey);
-      if (draft) {
-        applyAutosaveState(JSON.parse(draft));
-        setAutosaveStatus('saving', 'Draft restored from device');
-        setTimeout(() => setAutosaveStatus('idle', 'Autosave ready'), 3000);
-      }
+        const draft = localStorage.getItem(assessmentKey);
+        if (draft) {
+            applyAutosaveState(JSON.parse(draft));
+            setAutosaveStatus('saving', 'Draft restored from device');
+            setTimeout(() => setAutosaveStatus('idle', 'Autosave ready'), 3000);
+        }
     } catch (err) {
-      console.warn('Unable to restore draft', err);
+        console.warn('Unable to restore draft', err);
     }
-  })();
+})();
 
-  document.querySelectorAll('textarea[data-autosize="true"]').forEach((ta) => ta.addEventListener('input', autosaveNow));
-  setInterval(autosaveNow, 60000); /* fallback autosave every minute */
+document.querySelectorAll('textarea[data-autosize="true"]').forEach((ta) => ta.addEventListener('input', autosaveNow));
+setInterval(autosaveNow, 60000);
 
-  /* Countdown clock */
-  const threeHoursInSeconds = 3 * 60 * 60;
-  let remaining = threeHoursInSeconds;
-  setInterval(() => {
+/* Countdown clock */
+const threeHoursInSeconds = 3 * 60 * 60;
+let remaining = threeHoursInSeconds;
+setInterval(() => {
     remaining = Math.max(remaining - 1, 0);
     const hrs = String(Math.floor(remaining / 3600)).padStart(2, '0');
     const mins = String(Math.floor((remaining % 3600) / 60)).padStart(2, '0');
     const secs = String(remaining % 60).padStart(2, '0');
-    countdownClock.textContent = `${hrs}:${mins}:${secs}`;
-  }, 1000);
+    if (countdownClock) {
+        countdownClock.textContent = `${hrs}:${mins}:${secs}`;
+    }
+}, 1000);
 
-  // Utility function
-  function clamp(value, min, max) {
+function clamp(value, min, max) {
     return Math.min(Math.max(value, min), max);
-  }
+}
 </script>
 </body>
 </html>
+
+
+
+
+
+
+
+@login_required
+@require_http_methods(["POST"])
+def submit_exam(request, assessment_id):
+    """
+    Accepts both regular and AJAX submissions
+    - answer_<GeneratedQuestion.id>          (old pipeline)
+    - answer_node_<ExamNode.uuid>           (new pipeline)
+
+    Old: creates ExamAnswer rows (your existing flow).
+    New: collects node answers; optionally save into StudentWrittenPaper if present.
+    """
+    assessment = get_object_or_404(Assessment, id=assessment_id)
+
+    # Check if already submitted (prevent duplicate submissions)
+    existing_attempts = ExamSubmission.objects.filter(
+        assessment=assessment, student=request.user
+    ).count()
+    
+    if existing_attempts > 0:
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'message': 'You have already submitted this exam.'
+            })
+        messages.warning(request, "You have already submitted this exam.")
+        return redirect("student_dashboard")
+
+    paper = assessment.paper_link
+
+    student_number = (getattr(request.user, "student_number", None) or "").strip()
+    if not student_number or getattr(request.user, "role", "") != "learner":
+        messages.error(
+            request,
+            "This submission route is reserved for learners. You're signed in as staff/superuser, so no attempt was recorded.",
+        )
+        return redirect("student_dashboard")
+
+    attempt_number = existing_attempts + 1
+
+    # --- OLD PIPELINE: GeneratedQuestion -> ExamAnswer ---
+    saved_count_old = 0
+    for key, value in request.POST.items():
+        if not key.startswith("answer_"):
+            continue
+        # ignore the new pipeline prefix
+        if key.startswith("answer_node_"):
+            continue
+
+        # key is "answer_<gq_id>"
+        try:
+            gq_id = int(key.split("_", 1)[1])
+        except (IndexError, ValueError):
+            continue
+
+        gq = GeneratedQuestion.objects.filter(id=gq_id, assessment=assessment).first()
+        if not gq:
+            continue
+
+        try:
+            with transaction.atomic():
+                ExamAnswer.objects.create(
+                    user=request.user,
+                    question=gq,
+                    answer_text=(value or "").strip(),
+                    attempt_number=attempt_number,
+                )
+                saved_count_old += 1
+        except IntegrityError:
+            # If unique_together blocks dupes, update instead
+            ans = ExamAnswer.objects.get(
+                user=request.user, question=gq, attempt_number=attempt_number
+            )
+            ans.answer_text = (value or "").strip()
+            ans.save(update_fields=["answer_text"])
+
+    # --- NEW PIPELINE: ExamNode -> collect answers ---
+    node_answers: dict[str, str] = {}
+    answers_data = []
+    for key, value in request.POST.items():
+        if not key.startswith("answer_node_"):
+            continue
+        node_uuid = key.replace("answer_node_", "", 1).strip()
+        answer_text = (value or "").strip()
+        node_answers[node_uuid] = answer_text
+
+        if not paper:
+            continue
+
+        position = len(answers_data) + 1
+        try:
+            exam_node = ExamNode.objects.get(id=node_uuid, paper=paper)
+            answers_data.append(
+                {
+                    "node": exam_node,
+                    "answer": answer_text,
+                    "marks": exam_node.marks,
+                    "question_number": exam_node.number or f"Q{position}",
+                }
+            )
+        except ExamNode.DoesNotExist:
+            answers_data.append(
+                {
+                    "question_text": f"Question {node_uuid[:8]}...",
+                    "answer": answer_text,
+                    "marks": None,
+                    "question_number": f"Q{position}",
+                }
+            )
+
+    saved_new = len(node_answers)
+
+    if paper and (saved_new or saved_count_old):
+        context = {
+            "paper": paper,
+            "assessment": assessment,
+            "attempt_number": attempt_number,
+            "student": request.user,
+            "student_number": request.user.student_number,
+            "student_name": f"{request.user.first_name} {request.user.last_name}",
+            "answers": answers_data,
+            "submission_date": timezone.now(),
+            "total_questions": len(node_answers),
+        }
+
+        exam_submission = ExamSubmission.objects.create(
+            student=request.user,
+            student_number=request.user.student_number,
+            student_name=f"{request.user.first_name} {request.user.last_name}",
+            paper=paper,
+            assessment=assessment,
+            attempt_number=attempt_number,
+            submitted_at=timezone.now(),
+        )
+
+        try:
+            html_string = render_to_string(
+                "core/student/exam_pdf_template.html", context
+            )
+            pdf_buffer = BytesIO()
+            pisa_status = pisa.CreatePDF(html_string, dest=pdf_buffer)
+
+            if pisa_status.err:
+                raise Exception("PDF generation failed")
+
+            file_name = f"{request.user.student_number}_{paper.name.replace(' ', '_')}_Attempt_{attempt_number}.pdf"
+            pdf_buffer.seek(0)
+            exam_submission.pdf_file.save(file_name, ContentFile(pdf_buffer.getvalue()))
+            exam_submission.save()
+        except Exception as exc:  # pragma: no cover
+            messages.warning(
+                request,
+                "Your answers were saved, but the PDF could not be generated. Please contact support.",
+            )
+
+    # OPTIONAL: persist node answers if you've added StudentWrittenPaper
+    # if node_answers:
+    #     if paper:
+    #         swp, _ = StudentWrittenPaper.objects.get_or_create(
+    #             learner=request.user,
+    #             paper=paper,
+    #         )
+    #         existing = swp.answers_json or {}
+    #         existing.update(node_answers)
+    #         swp.answers_json = existing
+    #         swp.save(update_fields=['answers_json', 'last_updated'])
+
+    total_saved = saved_count_old + saved_new
+    
+    # Handle AJAX requests (for auto-save)
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        return JsonResponse({
+            'success': True,
+            'message': 'Auto-saved successfully',
+            'saved_count': total_saved
+        })
+    
+    # Regular form submission
+    if total_saved:
+        messages.success(request, "Your answers were submitted successfully.")
+    else:
+
+    #call 
+        messages.warning(
+            request,
+            "We could not detect any answers. Please ensure your responses are filled in and submit again.",
+        )
+    return redirect("student_dashboard")

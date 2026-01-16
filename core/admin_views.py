@@ -957,22 +957,47 @@ def administrator_paperbank(request):
 
 
 def administrator_uploads(request):
-    # Get papers that have been uploaded but not yet extracted
-    uploads = Assessment.objects.filter(
+    """Show uploaded files, extracted papers, and randomized variants"""
+    filter_type = request.GET.get("filter", "all")  # all, raw, extracted, randomized
+    
+    # Get raw uploads (Assessment with file but may or may not have paper_link)
+    raw_uploads = Assessment.objects.filter(
         file__isnull=False
-    ).select_related("qualification").order_by("-created_at")
+    ).select_related("qualification", "paper_link").order_by("-created_at")
+    
+    # Get extracted papers (Paper objects that are not randomized)
+    extracted_papers = Paper.objects.filter(
+        is_randomized=False
+    ).select_related("qualification", "created_by").prefetch_related("nodes").order_by("-created_at")
+    
+    # Get randomized papers (Paper objects that are randomized)
+    randomized_papers = Paper.objects.filter(
+        is_randomized=True
+    ).select_related("qualification", "created_by").prefetch_related("nodes").order_by("-created_at")
+    
+    # Apply filter
+    if filter_type == "raw":
+        uploads = raw_uploads.filter(paper_link__isnull=True)
+    elif filter_type == "extracted":
+        uploads = extracted_papers
+    elif filter_type == "randomized":
+        uploads = randomized_papers
+    else:  # all
+        uploads = None
     
     all_users = CustomUser.objects.filter(is_active=True).order_by("first_name", "last_name")
     
-    return render(
-        request,
-        "core/administrator/uploads.html",
-        {
-            "uploads": uploads,
-            "all_users": all_users,
-            "active_page": "uploads",
-        },
-    )
+    context = {
+        "raw_uploads": raw_uploads if filter_type in ["all", "raw"] else None,
+        "extracted_papers": extracted_papers if filter_type in ["all", "extracted"] else None,
+        "randomized_papers": randomized_papers if filter_type in ["all", "randomized"] else None,
+        "uploads": uploads,
+        "all_users": all_users,
+        "active_page": "uploads",
+        "filter_type": filter_type,
+    }
+    
+    return render(request, "uploads.html", context)
 
 
 @login_required

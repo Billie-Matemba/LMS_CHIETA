@@ -1,0 +1,179 @@
+{% extends "core/base.html" %}
+{% load exam_extras %}
+
+{% block title %}Papers Pipeline{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {% if messages %}
+        <div class="row mb-4">
+            {% for message in messages %}
+                <div class="col-12">
+                    <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-2">Papers Pipeline</h1>
+            <p class="text-muted">View and manage papers through the extraction and randomization pipeline</p>
+        </div>
+    </div>
+
+    <!-- Filter Tabs -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="btn-group" role="group" aria-label="Filter options">
+                <a href="{% url 'administrator_uploads' %}?filter=all" class="btn btn-outline-primary {% if filter_type == 'all' or not filter_type %}active{% endif %}">
+                    <i class="fas fa-list me-2"></i>All
+                </a>
+                <a href="{% url 'administrator_uploads' %}?filter=raw" class="btn btn-outline-info {% if filter_type == 'raw' %}active{% endif %}">
+                    <i class="fas fa-file-upload me-2"></i>Raw Uploads
+                </a>
+                <a href="{% url 'administrator_uploads' %}?filter=extracted" class="btn btn-outline-success {% if filter_type == 'extracted' %}active{% endif %}">
+                    <i class="fas fa-file-check me-2"></i>Extracted
+                </a>
+                <a href="{% url 'administrator_uploads' %}?filter=randomized" class="btn btn-outline-warning {% if filter_type == 'randomized' %}active{% endif %}">
+                    <i class="fas fa-shuffle me-2"></i>Randomized
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content Based on Filter -->
+    {% if filter_type == 'all' or not filter_type %}
+        <!-- Show All Three Sections -->
+        
+        {% if raw_uploads %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-file-upload me-2"></i>Raw Uploads
+                                <span class="badge bg-light text-dark float-end">{{ raw_uploads|length }} file(s)</span>
+                            </h5>
+                        </div>
+                        {% include "partials/uploads_table.html" with uploads=raw_uploads upload_type="raw" %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if extracted_papers %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-file-check me-2"></i>Extracted Papers
+                                <span class="badge bg-light text-dark float-end">{{ extracted_papers|length }} paper(s)</span>
+                            </h5>
+                        </div>
+                        {% include "partials/uploads_table.html" with uploads=extracted_papers upload_type="extracted" %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if randomized_papers %}
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0">
+                                <i class="fas fa-shuffle me-2"></i>Randomized Papers
+                                <span class="badge bg-light text-dark float-end">{{ randomized_papers|length }} paper(s)</span>
+                            </h5>
+                        </div>
+                        {% include "partials/uploads_table.html" with uploads=randomized_papers upload_type="randomized" %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if not raw_uploads and not extracted_papers and not randomized_papers %}
+            <div class="row">
+                <div class="col-12">
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle me-2"></i>No papers found in any pipeline stage.
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+    {% elif filter_type == 'raw' %}
+        <!-- Show Only Raw Uploads -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-file-upload me-2"></i>Raw Uploads
+                            <span class="badge bg-light text-dark float-end">{{ raw_uploads|length }} file(s)</span>
+                        </h5>
+                    </div>
+                    {% include "partials/uploads_table.html" with uploads=raw_uploads upload_type="raw" %}
+                </div>
+            </div>
+        </div>
+
+    {% elif filter_type == 'extracted' %}
+        <!-- Show Only Extracted Papers -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-file-check me-2"></i>Extracted Papers
+                            <span class="badge bg-light text-dark float-end">{{ extracted_papers|length }} paper(s)</span>
+                        </h5>
+                    </div>
+                    {% include "partials/uploads_table.html" with uploads=extracted_papers upload_type="extracted" %}
+                </div>
+            </div>
+        </div>
+
+    {% elif filter_type == 'randomized' %}
+        <!-- Show Only Randomized Papers -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="fas fa-shuffle me-2"></i>Randomized Papers
+                            <span class="badge bg-light text-dark float-end">{{ randomized_papers|length }} paper(s)</span>
+                        </h5>
+                    </div>
+                    {% include "partials/uploads_table.html" with uploads=randomized_papers upload_type="randomized" %}
+                </div>
+            </div>
+        </div>
+
+    {% endif %}
+
+</div>
+
+<style>
+    .btn-group .btn {
+        font-weight: 500;
+    }
+    
+    .btn-group .btn.active {
+        background-color: currentColor;
+    }
+    
+    .uploads-table {
+        font-size: 0.95rem;
+    }
+    
+    .uploads-table tbody tr:hover {
+        background-color: #f8f9fa;
+    }
+</style>
+{% endblock %}
