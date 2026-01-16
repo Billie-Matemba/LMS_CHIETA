@@ -567,20 +567,63 @@
                     <!-- <img src="{% static 'core/images/rb_2148892786.png' %}" alt="Profile Picture" width="390px" height="190px"> -->
                 </div>
                 <div class="welcome-box">
-                    <h2><i class="fas fa-chart-line me-2"></i> QCTO Reports</h2>
+                    <h2><i class="fas fa-chart-line me-2"></i> QCTO Dashboard</h2>
                     <div class="date">
-                        Access comprehensive reports on validated assessments and qualification statistics.
-                        <br>Track compliance metrics and monitor assessment validation progress.
-                        <span class="highlight">Ensure regulatory compliance!</span>
+                        Review assessments submitted by Moderators and forward them to QDD for quality assurance review.
+                        <br>Monitor assessment progress through the pipeline.
+                        <span class="highlight">Quality assurance in progress!</span>
                         <br>
                     </div>
+                </div>
+            </div>
+
+            <!-- Pending Assessments for QCTO Review -->
+            <div class="card shadow mt-4 mb-4">
+                <div class="card-header" style="background: linear-gradient(to right, #3a063a, #580658); color: white;">
+                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i> Pending QCTO Review 
+                        {% if pending_assessments %}
+                        <span class="badge bg-danger ms-2">{{ pending_assessments|length }}</span>
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if pending_assessments %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-secondary">
+                                <tr>
+                                    <th>EISA ID</th>
+                                    <th>Qualification</th>
+                                    <th>Paper</th>
+                                    <th>Submitted By</th>
+                                    <th>Date Submitted</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for assessment in pending_assessments %}
+                                <tr>
+                                    <td><strong>{{ assessment.eisa_id }}</strong></td>
+                                    <td>{{ assessment.qualification.name|default:"-" }}</td>
+                                    <td>{{ assessment.paper|truncatewords:5 }}</td>
+                                    <td>{{ assessment.created_by.get_full_name|default:assessment.created_by.username }}</td>
+                                    <td>{{ assessment.created_at|date:"M j, Y H:i" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i> No assessments pending QCTO review at this time.
+                    </div>
+                    {% endif %}
                 </div>
             </div>
 
             <!-- Reports Content -->
             <div class="card shadow mt-3">
                 <div class="card-header" style="background: linear-gradient(to right, #3a063a, #580658); color: white;">
-                    <h5 class="mb-0"><i class="fas fa-list-alt me-2"></i> Qualification Validation Statistics</h5>
+                    <h5 class="mb-0"><i class="fas fa-list-alt me-2"></i> Completed Reviews (Forwarded to QDD/ETQA)</h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">

@@ -4063,8 +4063,8 @@ def qcto_assessment_review(request):
 
         # Update status based on action
         if action == "approve":
-            assessment.status = "Submitted to ETQA"
-            messages.success(request, f"{eisa_id} approved and forwarded to ETQA.")
+            assessment.status = "QDD Review"
+            messages.success(request, f"{eisa_id} approved and forwarded to QDD for review.")
         elif action == "reject":
             assessment.status = "Rejected"
             messages.success(request, f"{eisa_id} has been rejected.")

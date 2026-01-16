@@ -3217,13 +3217,13 @@ def qcto_moderate_assessment(request, eisa_id):
         decision = request.POST.get("decision")  # now 'approve' or 'reject'
 
         if decision == "approve":
-            assessment.status = "Submitted to ETQA"
+            assessment.status = "QDD Review"
             assessment.status_changed_at = now()
             assessment.status_changed_by = (
                 request.user if request.user.is_authenticated else None
             )
             messages.success(
-                request, f"{assessment.eisa_id} approved and forwarded to ETQA."
+                request, f"{assessment.eisa_id} approved and forwarded to QDD for review."
             )
         elif decision == "reject":
             assessment.status = "Rejected"
