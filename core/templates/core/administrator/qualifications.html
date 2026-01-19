@@ -545,6 +545,14 @@
             </a>
               </li>
 
+                   <li class="nav-item">
+                    <a href="{% url 'qdd_developer_dashboard' %}"
+                        class="nav-link{% if request.resolver_match.url_name == 'qdd_developer_dashboard' %} active{% endif %}"
+                        style="color: inherit; text-decoration: none;">
+                        <i class="fas fa-clipboard-check me-2"></i>QDD Review
+                    </a>
+                </li>
+
                 <button class="gradient-button w-100 py-0">
                     <a href="{% url 'logout' %}" class="fix"> Log Out</a>
                 </button>

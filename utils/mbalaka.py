@@ -1,5 +1,5 @@
 """
-mbalaka.py — Markdown conversion + LLM-aided classification helper
+mbalaka.py — Markdown conversion + LLM-aided classification helper is not used, but this is a provisional module....Don't stress about this.
 
 Goals
 - Convert a Paper to compact, readable Markdown to give the LLM better context.
