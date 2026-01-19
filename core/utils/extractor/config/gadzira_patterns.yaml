@@ -1,0 +1,117 @@
+# CHIETA / Gadzira heuristic patterns
+# ------------------------------------------------------------
+# Populate this file with all known block/question templates that
+# appear in CHIETA/EISA papers. Each entry can drive a deterministic
+# capture rule without relying on an LLM. You can add as many patterns
+# as needed; the backend hot-reloads when the file changes.
+#
+# High-level structure
+# version: 1
+# defaults: optional fallbacks for capture/metadata
+# patterns:
+#   - key: unique identifier
+#     description: free-form text to remind what the pattern handles
+#     match:
+#       keywords_any: [list of lowercase keywords to match inside a block]
+#       keywords_all: [all of these keywords must appear]
+#       header_regex: optional regex (case-insensitive) to detect start
+#       block_types: limit match to ['paragraph','table','image',...]
+#       requires_table: true/false to require table block
+#     capture:
+#       until_next_header: true|false  # default true
+#       max_blocks: optional integer to stop after N blocks even if no header
+#       stop_keywords: optional keyword list to stop capture when encountered
+#     metadata:
+#       qtype: question|case_study|instruction|cover_page|...
+#       question_number: literal value or "auto" to use detected header numbers
+#       marks: default marks if not detected
+#       header_label: optional label stored on the box
+#       parent_number: optional default parent ref
+#     backfill:
+#       hints: optional free-text instructions for future NLP/OCR modes
+#
+# When a pattern has `collapse: true` in metadata it acts like an instruction
+# merger: multiple adjacent matches will be collapsed into a single suggestion.
+# Example patterns below are intentionally generic; replace/extend them with
+# realistic CHIETA templates as you gather them.
+
+version: 1
+
+defaults:
+  capture:
+    until_next_header: true
+  metadata:
+    qtype: question
+    question_number: auto
+
+patterns:
+  - key: cover_page
+    description: "Generic cover page chunk containing qualification meta"
+    match:
+      keywords_any:
+        - "external integrated summative assessment"
+        - "qualification"
+      keywords_all:
+        - "nqf"
+        - "duration"
+    metadata:
+      qtype: cover_page
+      question_number: "0"
+      marks: "0"
+      header_label: "Cover Page"
+      collapse: true
+
+  - key: general_instructions
+    description: "Bullet-list instructions prior to Question 1.1"
+    match:
+      keywords_any:
+        - "general eisa rules"
+        - "candidate instructions"
+        - "students are only allowed"
+    metadata:
+      qtype: instruction
+      question_number: "0"
+      marks: "0"
+      header_label: "Instructions"
+      collapse: true
+    capture:
+      until_next_header: true
+
+  - key: case_study_block
+    description: "Case study paragraphs that start with 'Case Study'"
+    match:
+      header_regex: "(?i)^\\s*case study"
+    metadata:
+      qtype: case_study
+      question_number: auto
+      marks: auto
+      header_label: "Case Study"
+    capture:
+      until_next_header: true
+
+  - key: table_question
+    description: "Tables with 'Complete' / 'Checklist' phrasing"
+    match:
+      keywords_any:
+        - "checklist"
+        - "complete"
+      requires_table: true
+    metadata:
+      qtype: table_q
+      question_number: auto
+      marks: auto
+
+  - key: fallback_constructed
+    description: "Catch-all for numbered constructed-response prompts"
+    match:
+      header_regex: "(?i)^\\s*(question\\s*)?(?P<num>\\d+(?:\\.\\d+)+)"
+    metadata:
+      qtype: question
+      question_number: auto
+      marks: auto
+    capture:
+      until_next_header: true
+
+# Add more patterns below. You can also group them by question family,
+# include OCR-specific cues (like uppercase headings), or add future
+# NLP hints inside `backfill` for when we enable AI backfilling.

@@ -6603,7 +6603,7 @@ def qdd_moderate_assessment(request, eisa_id):
     Handle QDD assessment review.
     
     Actions:
-    - approve: Forward to ETQA (status -> 'pending_etqa')
+    - approve: Forward to ETQA (status -> 'Submitted to ETQA')
     - return: Return to Moderator (status -> 'pending_moderation')
     
     Optional file upload for QDD review report (saved to moderator_report field).
