@@ -6029,7 +6029,7 @@ def upload_offline_exam_submission(request):
                 request,
                 f"Exam submission for {offline_student.student_number} (Attempt {attempt_number}) uploaded successfully!",
             )
-            return redirect("upload_offline_exam_submission")
+            return redirect("upload_offline_exam")
 
         except OfflineStudent.DoesNotExist:
             messages.error(request, "Selected student not found.")
