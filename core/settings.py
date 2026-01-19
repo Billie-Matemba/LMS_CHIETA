@@ -401,22 +401,22 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # Database
 
 
-DATABASES = {
-    'default': {
-         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-   }
- }
 # DATABASES = {
 #     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'chietalms_db_jj48',
-#         'USER': 'chietalms_db_jj48_user',
-#         'PASSWORD': 'tEAQdlTlu0eGkpa4um78gK9mc2lxLzzJ',
-#         'HOST': 'dpg-d5la4le3jp1c739a986g-a.oregon-postgres.render.com',
-#         'PORT': '5432',
-#     }
-# }
+#          'ENGINE': 'django.db.backends.sqlite3',
+#         'NAME': BASE_DIR / 'db.sqlite3',
+#    }
+#  }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'chietalms_db_jj48',
+        'USER': 'chietalms_db_jj48_user',
+        'PASSWORD': 'tEAQdlTlu0eGkpa4um78gK9mc2lxLzzJ',
+        'HOST': 'dpg-d5la4le3jp1c739a986g-a.oregon-postgres.render.com',
+        'PORT': '5432',
+    }
+}
 
 # DATABASES = {
 #    'default': {
