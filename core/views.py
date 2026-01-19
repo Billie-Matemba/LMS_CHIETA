@@ -3441,7 +3441,6 @@ def _moderator_dashboard_context(request):
         "pending_qcto",
         "qcto_approved",
         "Submitted to ETQA",
-        "pending_etqa",
         "Approved by ETQA",
         "etqa_approved",
         "Moderated",
@@ -3470,7 +3469,7 @@ def _moderator_dashboard_context(request):
     forwarded_assessments = (
         Assessment.objects.select_related("qualification", "created_by")
         .filter(
-            status__in=["Submitted to ETQA", "pending_etqa"],
+            status__in=["Submitted to ETQA"],
             paper__isnull=False,
         )
         .order_by("-created_at")
@@ -3881,7 +3880,7 @@ def qcto_dashboard(request):
     ).order_by("-created_at")
     
     reviewed_assessments = Assessment.objects.filter(
-        status__in=["QDD Review", "pending_etqa", "Submitted to ETQA"]
+        status__in=["QDD Review",  "Submitted to ETQA"]
     ).order_by("-status_changed_at")
     
     return render(
@@ -4155,7 +4154,7 @@ def assessment_progress_tracker(request):
         "Submitted to Moderator",
         "Submitted to QCTO",
         "pending_qcto",
-        "pending_etqa",
+        
     ]
 
     assessments = Assessment.objects.filter(status__in=archived_statuses).order_by(
@@ -6516,7 +6515,6 @@ def _qdd_dashboard_context(request):
     
     # Statuses for completed QDD reviews
     completed_qdd_statuses = [
-        "pending_etqa",
         "Submitted to ETQA",
         "Returned for Changes",
         "etqa_approved",
@@ -6638,7 +6636,7 @@ def qdd_moderate_assessment(request, eisa_id):
                 f"qdd_report_{eisa_id}{file_extension}", report_file
             )
         
-        assessment.status = "pending_etqa"
+        assessment.status = "Submitted to ETQA"
         assessment.status_changed_at = now()
         assessment.status_changed_by = request.user
         assessment.save(
