@@ -410,10 +410,10 @@ WSGI_APPLICATION = 'core.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'chietalms_db_jj48',
-        'USER': 'chietalms_db_jj48_user',
-        'PASSWORD': 'tEAQdlTlu0eGkpa4um78gK9mc2lxLzzJ',
-        'HOST': 'dpg-d5la4le3jp1c739a986g-a.oregon-postgres.render.com',
+        'NAME': 'chietalms2_db',
+        'USER': 'chietalms2_db_user',
+        'PASSWORD': 'mFKMbEqiFi71BaKwKJYOJmhUrweuqaF6',
+        'HOST': 'dpg-d5nkdv4mrvns73fq08bg-a.oregon-postgres.render.com',
         'PORT': '5432',
     }
 }
@@ -467,8 +467,8 @@ AUTHENTICATION_BACKENDS = [
 
 # Email configuration 
 # 🚨 TEMPORARY DEMO CHANGE - Real email sending for demo
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
-# EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
